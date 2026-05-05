@@ -1078,14 +1078,20 @@ async function analyzeImage(){
   }
 }
 
-// ── Claude (Anthropic) ──
+// ── Claude (Anthropic) — Worker 프록시 경유 ──
+// Worker URL: 배포 후 아래 WORKER_URL을 실제 주소로 교체하세요
+const WORKER_URL = 'https://claude-proxy.iam-mr-ryu.workers.dev';
+
 async function callClaude(apiKey, b64) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  // Worker가 설정됐는지 확인
+  if(WORKER_URL.includes('YOUR_SUBDOMAIN')){
+    throw new Error('Worker URL을 설정해 주세요. 아래 안내를 확인하세요.');
+  }
+  const res = await fetch(WORKER_URL, {
     method:'POST',
     headers:{
       'Content-Type':'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version':'2023-06-01'
+      'X-API-Key': apiKey,   // Worker가 이 헤더로 키를 받아서 Claude에 전달
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
