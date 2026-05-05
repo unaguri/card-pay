@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>카드 정산 도우미</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#F5F3EE;
+  --surface:#FFFFFF;
+  --surface2:#F0EDE6;
+  --border:#DDD9CF;
+  --ink:#1A1814;
+  --ink2:#6B6760;
+  --ink3:#A09C96;
+  --accent:#2D5BE3;
+  --accent-light:#EEF2FC;
+  --green:#1A7A4A;
+  --green-light:#E8F5EE;
+  --amber:#B85C00;
+  --amber-light:#FEF3E6;
+  --red:#C0392B;
+  --shadow:0 2px 12px rgba(0,0,0,0.08);
+  --radius:14px;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Noto Sans KR',sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  min-height:100vh;
+  line-height:1.6;
+}
+
+/* ── 헤더 ── */
+.top-bar{
+  background:var(--ink);
+  color:#fff;
+  padding:18px 20px 16px;
+  position:sticky;top:0;z-index:100;
+}
+.top-bar-inner{
+  max-width:680px;margin:0 auto;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.logo-mark{
+  display:flex;align-items:center;gap:10px;
+}
+.logo-icon{
+  width:36px;height:36px;
+  background:linear-gradient(135deg,#4A80F0,#2D5BE3);
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0;
+}
+.logo-text{font-size:16px;font-weight:700;letter-spacing:-0.02em}
+.logo-sub{font-size:11px;color:rgba(255,255,255,0.5);margin-top:1px;font-weight:300}
+.api-btn{
+  background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.2);
+  border-radius:8px;
+  color:#fff;
+  font-size:12px;
+  font-weight:500;
+  padding:6px 12px;
+  cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+  transition:background .2s;
+}
+.api-btn:hover{background:rgba(255,255,255,0.18)}
+
+/* ── 레이아웃 ── */
+.wrap{max-width:680px;margin:0 auto;padding:24px 16px 60px}
+
+/* ── 섹션 카드 ── */
+.card{
+  background:var(--surface);
+  border-radius:var(--radius);
+  border:1px solid var(--border);
+  padding:22px;
+  margin-bottom:16px;
+  box-shadow:var(--shadow);
+}
+.card-title{
+  font-size:13px;font-weight:700;
+  color:var(--ink2);
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  margin-bottom:16px;
+  display:flex;align-items:center;gap:8px;
+}
+.card-title::before{
+  content:'';display:block;
+  width:3px;height:14px;
+  background:var(--accent);
+  border-radius:2px;
+}
+
+/* ── 모드 탭 ── */
+.mode-tabs{
+  display:grid;grid-template-columns:1fr 1fr;
+  background:var(--surface2);
+  border-radius:10px;
+  padding:4px;
+  margin-bottom:20px;
+}
+.mode-tab{
+  padding:9px;text-align:center;
+  border-radius:7px;
+  font-size:13px;font-weight:600;
+  cursor:pointer;
+  color:var(--ink3);
+  transition:all .2s;
+  border:none;background:none;
+  font-family:'Noto Sans KR',sans-serif;
+}
+.mode-tab.active{
+  background:var(--surface);
+  color:var(--ink);
+  box-shadow:0 1px 4px rgba(0,0,0,0.1);
+}
+
+/* ── 업로드존 ── */
+.upload-zone{
+  border:2px dashed var(--border);
+  border-radius:12px;
+  padding:32px 20px;
+  text-align:center;
+  cursor:pointer;
+  transition:all .25s;
+  position:relative;
+  overflow:hidden;
+}
+.upload-zone:hover,.upload-zone.drag{
+  border-color:var(--accent);
+  background:var(--accent-light);
+}
+.upload-zone input{
+  position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;
+}
+.upload-icon{font-size:36px;margin-bottom:10px}
+.upload-title{font-size:15px;font-weight:700;margin-bottom:4px}
+.upload-sub{font-size:12px;color:var(--ink3)}
+.upload-preview{
+  width:100%;max-height:200px;
+  object-fit:contain;
+  border-radius:8px;
+  margin-top:12px;
+  display:none;
+}
+.upload-preview.show{display:block}
+
+/* ── 버튼 ── */
+.btn{
+  width:100%;padding:13px;
+  border:none;border-radius:10px;
+  font-size:15px;font-weight:700;
+  cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+  transition:all .18s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-primary{
+  background:var(--accent);color:#fff;
+}
+.btn-primary:hover{background:#2450CC;transform:translateY(-1px)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{background:#A8B9F0;cursor:not-allowed;transform:none}
+.btn-secondary{
+  background:var(--surface2);color:var(--ink);
+  border:1px solid var(--border);
+  margin-top:10px;
+}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── 수동 입력 ── */
+.manual-list{margin-bottom:14px}
+.manual-row{
+  display:grid;grid-template-columns:1fr 130px 36px;
+  gap:8px;margin-bottom:8px;align-items:center;
+}
+.manual-row input{
+  padding:10px 12px;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  font-size:14px;
+  color:var(--ink);
+  font-family:'Noto Sans KR',sans-serif;
+  outline:none;
+  transition:border .2s;
+  width:100%;
+}
+.manual-row input:focus{border-color:var(--accent)}
+.manual-row input::placeholder{color:var(--ink3)}
+.del-btn{
+  width:36px;height:36px;
+  background:none;border:1px solid var(--border);
+  border-radius:8px;color:var(--ink3);
+  cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;flex-shrink:0;
+}
+.del-btn:hover{border-color:var(--red);color:var(--red);background:#FEF2F2}
+.add-row-btn{
+  width:100%;padding:9px;
+  background:none;border:1px dashed var(--border);
+  border-radius:8px;
+  color:var(--ink3);font-size:13px;font-weight:500;
+  cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+  transition:all .15s;
+}
+.add-row-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── 로딩 ── */
+.loading-overlay{
+  display:none;
+  position:fixed;inset:0;
+  background:rgba(250,248,244,0.9);
+  z-index:999;
+  flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:16px;
+  backdrop-filter:blur(4px);
+}
+.loading-overlay.show{display:flex}
+.spinner{
+  width:48px;height:48px;
+  border:3px solid var(--border);
+  border-top-color:var(--accent);
+  border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:15px;font-weight:600;color:var(--ink)}
+.loading-sub{font-size:12px;color:var(--ink3)}
+
+/* ── 결과 섹션 ── */
+#resultSection{display:none}
+#resultSection.show{display:block}
+
+.month-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--accent-light);
+  color:var(--accent);
+  border-radius:20px;
+  padding:4px 12px;
+  font-size:12px;font-weight:700;
+  margin-bottom:16px;
+}
+
+.total-hero{
+  background:linear-gradient(135deg,#1A1814,#2D3748);
+  border-radius:12px;
+  padding:20px 22px;
+  margin-bottom:16px;
+  color:#fff;
+}
+.total-label{font-size:12px;color:rgba(255,255,255,0.55);margin-bottom:4px}
+.total-amount{
+  font-size:28px;font-weight:900;
+  letter-spacing:-0.03em;
+  font-family:'DM Mono',monospace;
+}
+.total-sub{font-size:12px;color:rgba(255,255,255,0.45);margin-top:6px}
+
+/* 은행 그룹 */
+.bank-group{margin-bottom:14px}
+.bank-header{
+  background:var(--surface2);
+  border-radius:10px 10px 0 0;
+  padding:10px 14px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);
+}
+.bank-name{font-size:13px;font-weight:700}
+.bank-account{
+  font-family:'DM Mono',monospace;
+  font-size:11px;color:var(--ink3);
+}
+.bank-subtotal{
+  font-size:13px;font-weight:700;
+  color:var(--green);
+}
+
+.card-items{
+  border:1px solid var(--border);
+  border-top:none;
+  border-radius:0 0 10px 10px;
+  overflow:hidden;
+}
+.card-item{
+  display:flex;align-items:center;
+  padding:12px 14px;
+  border-bottom:1px solid var(--border);
+  gap:10px;
+}
+.card-item:last-child{border-bottom:none}
+.card-item-name{flex:1;font-size:14px;font-weight:500}
+.card-item-day{
+  font-size:11px;color:var(--accent);
+  background:var(--accent-light);
+  border-radius:5px;padding:2px 7px;
+  font-weight:700;flex-shrink:0;
+}
+.card-item-amount{
+  font-family:'DM Mono',monospace;
+  font-size:14px;font-weight:500;
+  text-align:right;flex-shrink:0;
+}
+
+/* 은행 합계 행 */
+.bank-sum-row{
+  background:var(--green-light);
+  padding:10px 14px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-top:1px solid rgba(26,122,74,0.15);
+}
+.bank-sum-label{font-size:12px;font-weight:700;color:var(--green)}
+.bank-sum-amount{
+  font-family:'DM Mono',monospace;
+  font-size:13px;font-weight:700;
+  color:var(--green);
+}
+
+/* ── 출력 선택 ── */
+.output-tabs{
+  display:grid;grid-template-columns:1fr 1fr 1fr;
+  gap:8px;margin-bottom:16px;
+}
+.output-tab{
+  padding:12px 6px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--surface);
+  text-align:center;
+  cursor:pointer;
+  transition:all .18s;
+  font-family:'Noto Sans KR',sans-serif;
+}
+.output-tab:hover{border-color:var(--accent)}
+.output-tab.selected{
+  border-color:var(--accent);
+  background:var(--accent-light);
+}
+.output-tab-icon{font-size:22px;margin-bottom:4px}
+.output-tab-label{font-size:12px;font-weight:600;color:var(--ink2)}
+.output-tab.selected .output-tab-label{color:var(--accent)}
+
+.btn-download{
+  background:linear-gradient(135deg,#1A7A4A,#15803d);
+  color:#fff;
+}
+.btn-download:hover{filter:brightness(1.08);transform:translateY(-1px)}
+
+/* ── API 키 모달 ── */
+.modal-bg{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,0.55);z-index:200;
+  align-items:flex-end;justify-content:center;
+  padding:0;
+}
+@media(min-width:520px){.modal-bg{align-items:center;padding:20px}}
+.modal-bg.show{display:flex}
+.modal{
+  background:var(--surface);
+  border-radius:24px 24px 0 0;
+  width:100%;max-width:500px;
+  max-height:92vh;
+  overflow-y:auto;
+  padding:24px 20px 36px;
+  animation:slideUp .28s cubic-bezier(.22,.8,.32,1);
+}
+@media(min-width:520px){.modal{border-radius:20px;padding:28px 28px 28px}}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-title{font-size:18px;font-weight:800;margin-bottom:4px;letter-spacing:-0.02em}
+.modal-sub{font-size:13px;color:var(--ink3);margin-bottom:20px;line-height:1.6}
+.modal input{
+  width:100%;padding:12px 14px;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:10px;
+  font-size:14px;color:var(--ink);
+  font-family:'DM Mono',monospace;
+  outline:none;margin-bottom:6px;
+  transition:border .2s;
+}
+.modal input:focus{border-color:var(--accent)}
+.modal-hint{font-size:11px;color:var(--ink3);margin-bottom:16px;display:flex;align-items:center;gap:4px}
+.modal-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px}
+.modal-btns button{
+  padding:12px;border:none;border-radius:10px;
+  font-size:14px;font-weight:700;
+  cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+  transition:all .15s;
+}
+.modal-cancel{background:var(--surface2);color:var(--ink2)}
+.modal-cancel:hover{background:var(--border)}
+.modal-save{background:var(--accent);color:#fff}
+.modal-save:hover{background:#2450CC}
+
+/* AI 서비스 가이드 */
+.guide-title{
+  font-size:12px;font-weight:700;
+  color:var(--ink2);
+  letter-spacing:0.06em;text-transform:uppercase;
+  margin-bottom:12px;
+  display:flex;align-items:center;gap:6px;
+}
+.guide-title::before{
+  content:'';display:block;
+  width:3px;height:12px;
+  background:var(--accent);border-radius:2px;
+}
+.ai-cards{display:flex;flex-direction:column;gap:8px}
+.ai-card{
+  border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;
+  transition:border-color .2s;
+}
+.ai-card:hover{border-color:var(--accent)}
+.ai-card-header{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 14px 10px;
+  cursor:pointer;
+  user-select:none;
+}
+.ai-card-icon{
+  width:32px;height:32px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+}
+.ai-card-name{font-size:13px;font-weight:700;flex:1}
+.ai-card-tag{
+  font-size:10px;font-weight:600;
+  padding:2px 7px;border-radius:10px;
+  flex-shrink:0;
+}
+.tag-kr{background:#FFF0F0;color:#C0392B}
+.tag-en{background:#EEF6FF;color:#1D4ED8}
+.ai-card-toggle{
+  font-size:11px;color:var(--ink3);
+  transition:transform .2s;flex-shrink:0;
+}
+.ai-card.open .ai-card-toggle{transform:rotate(180deg)}
+.ai-card-body{
+  display:none;
+  padding:0 14px 14px;
+  border-top:1px solid var(--border);
+}
+.ai-card.open .ai-card-body{display:block}
+.ai-steps{
+  padding:10px 0 10px;
+  display:flex;flex-direction:column;gap:6px;
+}
+.ai-step{
+  display:flex;gap:8px;align-items:flex-start;
+  font-size:12px;color:var(--ink2);line-height:1.5;
+}
+.ai-step-num{
+  width:18px;height:18px;border-radius:50%;
+  background:var(--accent);color:#fff;
+  font-size:10px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:1px;
+}
+.ai-link{
+  display:flex;align-items:center;gap:6px;
+  background:var(--accent);
+  color:#fff;
+  border-radius:8px;
+  padding:9px 14px;
+  font-size:13px;font-weight:700;
+  text-decoration:none;
+  margin-top:10px;
+  transition:background .15s;
+}
+.ai-link:hover{background:#2450CC}
+.ai-link-sub{
+  display:flex;align-items:center;gap:6px;
+  background:var(--surface2);
+  color:var(--ink2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:8px 14px;
+  font-size:12px;font-weight:600;
+  text-decoration:none;
+  margin-top:6px;
+  transition:border-color .15s;
+}
+.ai-link-sub:hover{border-color:var(--accent);color:var(--accent)}
+.ai-cost{
+  font-size:11px;color:var(--ink3);
+  background:var(--surface2);
+  border-radius:6px;padding:6px 10px;
+  margin-top:8px;line-height:1.5;
+}
+.modal-divider{
+  height:1px;background:var(--border);
+  margin:20px 0;
+}
+
+/* ── 알림 토스트 ── */
+.toast{
+  position:fixed;bottom:24px;left:50%;
+  transform:translateX(-50%) translateY(80px);
+  background:var(--ink);color:#fff;
+  padding:12px 20px;border-radius:24px;
+  font-size:13px;font-weight:600;
+  opacity:0;transition:all .3s;z-index:500;
+  white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── 반응형 ── */
+@media(max-width:480px){
+  .manual-row{grid-template-columns:1fr 110px 36px}
+  .total-amount{font-size:24px}
+  .output-tabs{gap:6px}
+  .output-tab{padding:10px 4px}
+  .output-tab-icon{font-size:18px}
+}
+
+/* ── 이미지 출력 캔버스 (숨김) ── */
+#exportCanvas{display:none}
+
+/* notice */
+.notice{
+  background:var(--amber-light);
+  border:1px solid rgba(184,92,0,0.2);
+  border-radius:10px;
+  padding:12px 14px;
+  font-size:12px;
+  color:var(--amber);
+  margin-bottom:16px;
+  display:flex;gap:8px;align-items:flex-start;
+}
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="top-bar">
+  <div class="top-bar-inner">
+    <div class="logo-mark">
+      <div class="logo-icon">💳</div>
+      <div>
+        <div class="logo-text">카드 정산 도우미</div>
+        <div class="logo-sub">이미지 업로드 → 자동 분석 → 다운로드</div>
+      </div>
+    </div>
+    <button class="api-btn" id="headerApiBtn" onclick="openApiModal()">🔑 API 키</button>
+  </div>
+</div>
+
+<!-- 로딩 -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">분석 중...</div>
+  <div class="loading-sub" id="loadingSub">잠시만 기다려 주세요</div>
+</div>
+
+<!-- 메인 -->
+<div class="wrap">
+
+  <!-- STEP 1: 입력 -->
+  <div class="card">
+    <div class="card-title">STEP 1 — 카드 정보 입력</div>
+
+    <!-- 모드 탭 -->
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tabImg" onclick="setMode('img')">📷 이미지 분석</button>
+      <button class="mode-tab" id="tabManual" onclick="setMode('manual')">✏️ 직접 입력</button>
+    </div>
+
+    <!-- 이미지 모드 -->
+    <div id="modeImg">
+      <div class="notice">
+        💡 토스·네이버페이·카카오페이의 카드 결제 예정 화면을 캡처해서 올려주세요.
+      </div>
+      <div class="upload-zone" id="uploadZone"
+        ondragover="e=>{e.preventDefault();this.classList.add('drag')}"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="handleDrop(event)">
+        <input type="file" accept="image/*" onchange="handleFile(this.files[0])">
+        <div id="uploadContent">
+          <div class="upload-icon">🖼️</div>
+          <div class="upload-title">이미지를 올려주세요</div>
+          <div class="upload-sub">클릭하거나 드래그 · 모바일은 갤러리/스크린샷 선택</div>
+        </div>
+        <img class="upload-preview" id="uploadPreview">
+      </div>
+      <button class="btn btn-primary" id="btnAnalyze" onclick="analyzeImage()" disabled style="margin-top:14px">
+        🤖 AI로 자동 분석
+      </button>
+      <button class="btn btn-secondary" onclick="setMode('manual')">✏️ 직접 입력으로 전환</button>
+    </div>
+
+    <!-- 수동 입력 모드 -->
+    <div id="modeManual" style="display:none">
+      <div class="manual-list" id="manualList"></div>
+      <button class="add-row-btn" onclick="addManualRow()">+ 카드 추가</button>
+      <button class="btn btn-primary" onclick="processManual()" style="margin-top:14px">
+        📊 정산표 만들기
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 2: 결과 -->
+  <div id="resultSection">
+    <div class="card">
+      <div class="card-title">STEP 2 — 결제 예정 내역</div>
+
+      <div class="month-badge">
+        <span>📅</span>
+        <span id="resultMonth">2026년 5월</span>
+      </div>
+
+      <!-- 합계 히어로 -->
+      <div class="total-hero">
+        <div class="total-label">이번 달 전체 결제 예정액</div>
+        <div class="total-amount" id="grandTotalDisplay">0원</div>
+        <div class="total-sub" id="cardCountDisplay">카드 0개 · 은행 0곳</div>
+      </div>
+
+      <!-- 은행별 그룹 -->
+      <div id="bankGroups"></div>
+    </div>
+
+    <!-- STEP 3: 출력 -->
+    <div class="card">
+      <div class="card-title">STEP 3 — 출력 형식 선택</div>
+
+      <div class="output-tabs">
+        <div class="output-tab selected" id="outExcel" onclick="selectOutput('excel')">
+          <div class="output-tab-icon">📊</div>
+          <div class="output-tab-label">엑셀</div>
+        </div>
+        <div class="output-tab" id="outText" onclick="selectOutput('text')">
+          <div class="output-tab-icon">📝</div>
+          <div class="output-tab-label">텍스트</div>
+        </div>
+        <div class="output-tab" id="outImage" onclick="selectOutput('image')">
+          <div class="output-tab-icon">🖼️</div>
+          <div class="output-tab-label">이미지</div>
+        </div>
+      </div>
+
+      <button class="btn btn-download" onclick="doDownload()">
+        ⬇️ <span id="downloadLabel">엑셀 다운로드</span>
+      </button>
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<!-- API 키 모달 -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+
+    <!-- 키 입력 섹션 -->
+    <div class="modal-title">🔑 API 키 설정</div>
+    <div class="modal-sub">키를 붙여넣으면 어떤 AI인지 자동으로 감지합니다.<br>키는 이 기기에만 저장되며 외부로 전송되지 않습니다.</div>
+
+    <!-- 감지 결과 뱃지 -->
+    <div id="aiDetected" style="display:none;margin-bottom:10px">
+      <div id="aiDetectedInner" style="
+        display:flex;align-items:center;gap:10px;
+        padding:10px 14px;border-radius:10px;
+        border:1.5px solid var(--accent);
+        background:var(--accent-light);
+        animation:fadeIn .2s ease;
+      ">
+        <span id="aiDetectedIcon" style="font-size:20px"></span>
+        <div>
+          <div id="aiDetectedName" style="font-size:13px;font-weight:700;color:var(--ink)"></div>
+          <div id="aiDetectedDesc" style="font-size:11px;color:var(--ink3)"></div>
+        </div>
+        <span style="margin-left:auto;font-size:18px">✅</span>
+      </div>
+    </div>
+
+    <!-- 미인식 경고 -->
+    <div id="aiUnknown" style="display:none;margin-bottom:10px">
+      <div style="
+        display:flex;align-items:center;gap:10px;
+        padding:10px 14px;border-radius:10px;
+        border:1.5px solid var(--amber);
+        background:var(--amber-light);
+        font-size:12px;color:var(--amber);font-weight:600;
+      ">
+        ⚠️ 인식되지 않는 키 형식입니다. 아래 가이드에서 올바른 키를 발급받으세요.
+      </div>
+    </div>
+
+    <div style="position:relative">
+      <input type="password" id="apiKeyInput"
+        placeholder="API 키를 붙여넣으세요 (sk-ant-..., sk-proj-..., AIza...)"
+        oninput="detectApiKey(this.value)"
+        style="padding-right:44px"
+      />
+      <button onclick="toggleKeyVisibility()" id="eyeBtn"
+        style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+        background:none;border:none;cursor:pointer;font-size:16px;color:var(--ink3)">
+        👁️
+      </button>
+    </div>
+    <div class="modal-hint">🔒 키는 이 브라우저에만 저장 · 서버 전송 없음</div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal()">취소</button>
+      <button class="modal-save" onclick="saveApiKey()">저장</button>
+    </div>
+
+    <div class="modal-divider"></div>
+
+    <!-- AI 서비스별 발급 가이드 -->
+    <div class="guide-title">AI별 API 키 발급 방법</div>
+    <div class="ai-cards">
+
+      <!-- Claude (Anthropic) -->
+      <div class="ai-card" id="guide-claude">
+        <div class="ai-card-header" onclick="toggleGuide('claude')">
+          <div class="ai-card-icon" style="background:#1A1814">🤖</div>
+          <div>
+            <div class="ai-card-name">Claude (Anthropic)</div>
+            <div style="font-size:11px;color:var(--ink3)">이 앱 기본 사용 AI · 이미지 분석 최적화</div>
+          </div>
+          <span class="ai-card-tag tag-en">권장</span>
+          <span class="ai-card-toggle">▼</span>
+        </div>
+        <div class="ai-card-body">
+          <div class="ai-steps">
+            <div class="ai-step"><span class="ai-step-num">1</span><span>아래 링크로 Anthropic Console 접속 후 회원가입</span></div>
+            <div class="ai-step"><span class="ai-step-num">2</span><span>좌측 메뉴 <b>API Keys</b> 클릭 → <b>+ Create Key</b></span></div>
+            <div class="ai-step"><span class="ai-step-num">3</span><span>키 이름 입력 후 생성 → 키를 <b>즉시 복사</b> (다시 볼 수 없음)</span></div>
+            <div class="ai-step"><span class="ai-step-num">4</span><span>결제 수단 등록 후 사용 (소량 무료 크레딧 제공)</span></div>
+          </div>
+          <div class="ai-cost">💰 비용: 이미지 1장 분석 약 $0.002~0.005 (약 3~7원)</div>
+          <a class="ai-link" href="https://console.anthropic.com" target="_blank" rel="noopener">
+            🚀 Anthropic Console 바로가기
+          </a>
+          <a class="ai-link-sub" href="https://docs.anthropic.com/en/api/getting-started" target="_blank" rel="noopener">
+            📄 공식 API 문서
+          </a>
+        </div>
+      </div>
+
+      <!-- ChatGPT (OpenAI) -->
+      <div class="ai-card" id="guide-openai">
+        <div class="ai-card-header" onclick="toggleGuide('openai')">
+          <div class="ai-card-icon" style="background:#10A37F">💬</div>
+          <div>
+            <div class="ai-card-name">ChatGPT (OpenAI)</div>
+            <div style="font-size:11px;color:var(--ink3)">GPT-4o 이미지 분석 지원</div>
+          </div>
+          <span class="ai-card-tag tag-en">EN</span>
+          <span class="ai-card-toggle">▼</span>
+        </div>
+        <div class="ai-card-body">
+          <div class="ai-steps">
+            <div class="ai-step"><span class="ai-step-num">1</span><span>아래 링크로 OpenAI Platform 접속 (ChatGPT 앱과 별개)</span></div>
+            <div class="ai-step"><span class="ai-step-num">2</span><span>로그인 후 좌측 <b>API Keys</b> → <b>Create new secret key</b></span></div>
+            <div class="ai-step"><span class="ai-step-num">3</span><span>키 즉시 복사 저장 (재확인 불가)</span></div>
+            <div class="ai-step"><span class="ai-step-num">4</span><span>Billing에서 최소 $5 충전 필요</span></div>
+          </div>
+          <div class="ai-cost">💰 비용: GPT-4o 이미지 1장 약 $0.003~0.01 (약 4~14원)</div>
+          <a class="ai-link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="background:#10A37F">
+            🚀 OpenAI Platform 바로가기
+          </a>
+          <a class="ai-link-sub" href="https://platform.openai.com/docs/quickstart" target="_blank" rel="noopener">
+            📄 공식 시작 가이드
+          </a>
+        </div>
+      </div>
+
+      <!-- Google Gemini -->
+      <div class="ai-card" id="guide-gemini">
+        <div class="ai-card-header" onclick="toggleGuide('gemini')">
+          <div class="ai-card-icon" style="background:linear-gradient(135deg,#4285F4,#34A853)">✨</div>
+          <div>
+            <div class="ai-card-name">Gemini (Google)</div>
+            <div style="font-size:11px;color:var(--ink3)">무료 사용량 제공 · Google 계정으로 가입</div>
+          </div>
+          <span class="ai-card-tag tag-en">무료↑</span>
+          <span class="ai-card-toggle">▼</span>
+        </div>
+        <div class="ai-card-body">
+          <div class="ai-steps">
+            <div class="ai-step"><span class="ai-step-num">1</span><span>Google AI Studio 접속 (Google 계정 필요)</span></div>
+            <div class="ai-step"><span class="ai-step-num">2</span><span>우상단 <b>Get API key</b> → <b>Create API key</b> 클릭</span></div>
+            <div class="ai-step"><span class="ai-step-num">3</span><span>프로젝트 선택 후 키 생성 → 복사</span></div>
+            <div class="ai-step"><span class="ai-step-num">4</span><span>무료 티어: 분당 15회 요청 가능</span></div>
+          </div>
+          <div class="ai-cost">💰 비용: 무료 티어 있음 · Gemini 1.5 Flash 이미지 1장 약 $0.0002 (무료 한도 내 0원)</div>
+          <a class="ai-link" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="background:#4285F4">
+            🚀 Google AI Studio 바로가기
+          </a>
+          <a class="ai-link-sub" href="https://ai.google.dev/gemini-api/docs/quickstart" target="_blank" rel="noopener">
+            📄 공식 시작 가이드
+          </a>
+        </div>
+      </div>
+
+      <!-- 네이버 CLOVA -->
+      <div class="ai-card" id="guide-clova">
+        <div class="ai-card-header" onclick="toggleGuide('clova')">
+          <div class="ai-card-icon" style="background:#03C75A">🇰🇷</div>
+          <div>
+            <div class="ai-card-name">CLOVA Studio (네이버)</div>
+            <div style="font-size:11px;color:var(--ink3)">한국어 특화 · 네이버 클라우드 계정 필요</div>
+          </div>
+          <span class="ai-card-tag tag-kr">국내</span>
+          <span class="ai-card-toggle">▼</span>
+        </div>
+        <div class="ai-card-body">
+          <div class="ai-steps">
+            <div class="ai-step"><span class="ai-step-num">1</span><span>CLOVA Studio 접속 후 네이버 클라우드 가입</span></div>
+            <div class="ai-step"><span class="ai-step-num">2</span><span>앱 생성 → <b>API Key</b> 발급</span></div>
+            <div class="ai-step"><span class="ai-step-num">3</span><span>베타 무료 크레딧 제공 (이미지 분석은 HyperCLOVA X 사용)</span></div>
+          </div>
+          <div class="ai-cost">💰 비용: 무료 크레딧 제공 후 토큰 기반 과금</div>
+          <a class="ai-link" href="https://clova.ai/studio" target="_blank" rel="noopener" style="background:#03C75A">
+            🚀 CLOVA Studio 바로가기
+          </a>
+          <a class="ai-link-sub" href="https://api.ncloud-docs.com/docs/ai-nlu-clovastudio" target="_blank" rel="noopener">
+            📄 API 문서
+          </a>
+        </div>
+      </div>
+
+      <!-- 카카오 Karlo -->
+      <div class="ai-card" id="guide-kakao">
+        <div class="ai-card-header" onclick="toggleGuide('kakao')">
+          <div class="ai-card-icon" style="background:#FEE500">🐣</div>
+          <div>
+            <div class="ai-card-name">KakaoAI (카카오)</div>
+            <div style="font-size:11px;color:var(--ink3)">카카오 계정 기반 · 개발자 등록 필요</div>
+          </div>
+          <span class="ai-card-tag tag-kr">국내</span>
+          <span class="ai-card-toggle">▼</span>
+        </div>
+        <div class="ai-card-body">
+          <div class="ai-steps">
+            <div class="ai-step"><span class="ai-step-num">1</span><span>Kakao Developers 접속 → 카카오 계정 로그인</span></div>
+            <div class="ai-step"><span class="ai-step-num">2</span><span>내 애플리케이션 → 애플리케이션 추가</span></div>
+            <div class="ai-step"><span class="ai-step-num">3</span><span>앱 키(REST API 키) 확인 후 복사</span></div>
+          </div>
+          <div class="ai-cost">💰 비용: 일부 API 무료 · 이미지 분석은 별도 정책 확인 필요</div>
+          <a class="ai-link" href="https://developers.kakao.com" target="_blank" rel="noopener" style="background:#3C1E1E">
+            🚀 Kakao Developers 바로가기
+          </a>
+          <a class="ai-link-sub" href="https://developers.kakao.com/docs/latest/ko/getting-started/app" target="_blank" rel="noopener">
+            📄 시작 가이드
+          </a>
+        </div>
+      </div>
+
+    </div><!-- /ai-cards -->
+  </div>
+</div>
+
+<!-- 텍스트 복사용 숨김 -->
+<canvas id="exportCanvas"></canvas>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+
+// ═══════════════════════════════
+//  데이터: 카드사 매핑
+// ═══════════════════════════════
+const CARD_SETTINGS = [
+  {cardName:'하나카드', aliases:['하나카드','당근카드','하나'], paymentDay:23, bank:'하나은행', account:'42491044110107'},
+  {cardName:'신한카드', aliases:['신한카드','신한','신한(토스)'], paymentDay:25, bank:'토스뱅크', account:'1000-3615-9665'},
+  {cardName:'KB국민카드', aliases:['KB국민카드','국민카드','KB카드','kb국민','KB국민'], paymentDay:25, bank:'우리은행', account:'1002231574436'},
+  {cardName:'삼성카드', aliases:['삼성카드','삼성'], paymentDay:25, bank:'우리은행', account:'1002231574436'},
+  {cardName:'현대카드', aliases:['현대카드','현대'], paymentDay:25, bank:'우리은행', account:'1002231574436'},
+  {cardName:'롯데카드', aliases:['롯데카드','롯데'], paymentDay:25, bank:'우리은행', account:'1002231574436'},
+  {cardName:'우리카드', aliases:['우리카드','우리'], paymentDay:25, bank:'우리은행', account:'1002231574436'},
+  {cardName:'NH농협카드', aliases:['NH농협카드','농협카드','농협','NH카드','nh농협'], paymentDay:25, bank:'농협은행', account:'352-2131-5170-53'},
+];
+const BANK_ORDER = ['우리은행','하나은행','토스뱅크','농협은행'];
+
+// ═══════════════════════════════
+//  상태
+// ═══════════════════════════════
+let currentMode = 'img';
+let currentFile = null;
+let currentCards = []; // [{cardName, amount, paymentDay, bank, account}]
+let selectedOutput = 'excel';
+
+// ═══════════════════════════════
+//  초기화
+// ═══════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  addManualRow(); addManualRow(); addManualRow();
+  updateMonth();
+  const saved = localStorage.getItem('claude_api_key');
+  if(saved) {
+    document.getElementById('apiKeyInput').value = saved;
+    updateHeaderBtn(saved);
+  }
+});
+
+function updateMonth(){
+  const now = new Date();
+  document.getElementById('resultMonth').textContent =
+    `${now.getFullYear()}년 ${now.getMonth()+1}월`;
+}
+
+// ═══════════════════════════════
+//  모드 전환
+// ═══════════════════════════════
+function setMode(m){
+  currentMode = m;
+  document.getElementById('modeImg').style.display = m==='img'?'block':'none';
+  document.getElementById('modeManual').style.display = m==='manual'?'block':'none';
+  document.getElementById('tabImg').className = 'mode-tab'+(m==='img'?' active':'');
+  document.getElementById('tabManual').className = 'mode-tab'+(m==='manual'?' active':'');
+}
+
+// ═══════════════════════════════
+//  이미지 업로드
+// ═══════════════════════════════
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if(file && file.type.startsWith('image/')) handleFile(file);
+}
+
+function handleFile(file){
+  if(!file) return;
+  currentFile = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const prev = document.getElementById('uploadPreview');
+    prev.src = ev.target.result;
+    prev.className = 'upload-preview show';
+    document.getElementById('uploadContent').style.opacity = '0.3';
+    document.getElementById('btnAnalyze').disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ═══════════════════════════════
+//  AI 분석 — 키 종류 자동 감지 후 라우팅
+// ═══════════════════════════════
+const PROMPT = `이 이미지는 모바일 카드 결제 예정 화면입니다.
+카드사명과 결제 예정 금액을 모두 추출해서 JSON 배열로만 응답하세요.
+다른 텍스트나 마크다운 없이 순수 JSON만 출력하세요.
+형식: [{"cardName":"KB국민카드","amount":715750},{"cardName":"현대카드","amount":1536508}]
+금액은 숫자만(쉼표·원·공백 제거). 카드사명은 정확한 공식 이름으로.`;
+
+async function analyzeImage(){
+  const apiKey = localStorage.getItem('claude_api_key');
+  if(!apiKey){ openApiModal(); showToast('⚠️ 먼저 API 키를 입력해 주세요'); return; }
+  if(!currentFile){ showToast('이미지를 먼저 업로드해 주세요'); return; }
+
+  const profile = detectKeyProfile(apiKey);
+  const aiName = profile ? profile.name : 'AI';
+  showLoading(`${profile ? profile.icon : '🤖'} ${aiName} 분석 중...`, '카드사와 금액을 읽고 있습니다');
+
+  try {
+    const b64 = await fileToBase64(currentFile);
+    let parsed;
+
+    if(!profile || profile.id === 'claude') {
+      parsed = await callClaude(apiKey, b64);
+    } else if(profile.id === 'openai') {
+      parsed = await callOpenAI(apiKey, b64);
+    } else if(profile.id === 'gemini') {
+      parsed = await callGemini(apiKey, b64);
+    } else {
+      throw new Error('지원하지 않는 API 키 형식입니다.');
+    }
+
+    hideLoading();
+    buildResult(parsed, `${profile ? profile.icon+' ' : ''}${aiName}`);
+
+  } catch(e){
+    hideLoading();
+    showToast('❌ ' + e.message);
+  }
+}
+
+// ── Claude (Anthropic) ──
+async function callClaude(apiKey, b64) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version':'2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 800,
+      messages:[{ role:'user', content:[
+        {type:'image', source:{type:'base64', media_type: currentFile.type, data: b64}},
+        {type:'text', text: PROMPT}
+      ]}]
+    })
+  });
+  if(!res.ok){ const e=await res.json(); throw new Error(e.error?.message||`Claude 오류 ${res.status}`); }
+  const data = await res.json();
+  const raw = data.content[0].text.trim().replace(/```json|```/g,'').trim();
+  return JSON.parse(raw);
+}
+
+// ── ChatGPT (OpenAI) ──
+async function callOpenAI(apiKey, b64) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      max_tokens: 800,
+      messages:[{ role:'user', content:[
+        {type:'image_url', image_url:{ url:`data:${currentFile.type};base64,${b64}` }},
+        {type:'text', text: PROMPT}
+      ]}]
+    })
+  });
+  if(!res.ok){ const e=await res.json(); throw new Error(e.error?.message||`OpenAI 오류 ${res.status}`); }
+  const data = await res.json();
+  const raw = data.choices[0].message.content.trim().replace(/```json|```/g,'').trim();
+  return JSON.parse(raw);
+}
+
+// ── Gemini (Google) ──
+async function callGemini(apiKey, b64) {
+  const model = 'gemini-1.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({
+      contents:[{ parts:[
+        { inline_data:{ mime_type: currentFile.type, data: b64 }},
+        { text: PROMPT }
+      ]}],
+      generationConfig:{ temperature:0, maxOutputTokens:800 }
+    })
+  });
+  if(!res.ok){ const e=await res.json(); throw new Error(e.error?.message||`Gemini 오류 ${res.status}`); }
+  const data = await res.json();
+  // Gemini 응답 구조: candidates[0].content.parts[0].text
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if(!raw) throw new Error('Gemini 응답이 비어있습니다.');
+  const clean = raw.trim().replace(/```json|```/g,'').trim();
+  return JSON.parse(clean);
+}
+
+function fileToBase64(file){
+  return new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = ()=> res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+// ═══════════════════════════════
+//  수동 입력
+// ═══════════════════════════════
+function addManualRow(){
+  const list = document.getElementById('manualList');
+  const idx = list.children.length;
+  const row = document.createElement('div');
+  row.className = 'manual-row';
+  row.innerHTML = `
+    <input type="text" placeholder="카드사명 (예: KB국민카드)" data-type="name"/>
+    <input type="text" placeholder="금액 (예: 715750)" data-type="amount" inputmode="numeric"/>
+    <button class="del-btn" onclick="this.parentElement.remove()">×</button>
+  `;
+  list.appendChild(row);
+}
+
+function processManual(){
+  const rows = document.querySelectorAll('#manualList .manual-row');
+  const cards = [];
+  rows.forEach(row=>{
+    const name = row.querySelector('[data-type="name"]').value.trim();
+    const amtStr = row.querySelector('[data-type="amount"]').value.replace(/[^0-9]/g,'');
+    const amt = parseInt(amtStr,10);
+    if(name && !isNaN(amt) && amt>0) cards.push({cardName:name, amount:amt});
+  });
+  if(cards.length===0){ showToast('⚠️ 카드사와 금액을 입력해 주세요'); return; }
+  buildResult(cards, '직접 입력');
+}
+
+// ═══════════════════════════════
+//  결과 빌드
+// ═══════════════════════════════
+function matchCard(rawName){
+  const n = rawName.replace(/\s/g,'').toLowerCase();
+  for(const s of CARD_SETTINGS){
+    if(s.aliases.some(a=>n.includes(a.replace(/\s/g,'').toLowerCase()) ||
+      a.replace(/\s/g,'').toLowerCase().includes(n))) return s;
+  }
+  return null;
+}
+
+function buildResult(rawCards, method){
+  currentCards = rawCards.map(r=>{
+    const info = matchCard(r.cardName);
+    return {
+      cardName: info ? info.cardName : r.cardName,
+      amount: r.amount,
+      paymentDay: info ? info.paymentDay : 25,
+      bank: info ? info.bank : '미확인',
+      account: info ? info.account : '-',
+    };
+  });
+
+  // 은행별 그룹
+  const groups = {};
+  for(const c of currentCards){
+    if(!groups[c.bank]) groups[c.bank]=[];
+    groups[c.bank].push(c);
+  }
+  const banks = Object.keys(groups).sort((a,b)=>{
+    const ai=BANK_ORDER.indexOf(a),bi=BANK_ORDER.indexOf(b);
+    return (ai<0?99:ai)-(bi<0?99:bi);
+  });
+
+  const grandTotal = currentCards.reduce((s,c)=>s+c.amount,0);
+
+  // 히어로
+  document.getElementById('grandTotalDisplay').textContent = grandTotal.toLocaleString()+'원';
+  document.getElementById('cardCountDisplay').textContent =
+    `카드 ${currentCards.length}개 · 은행 ${banks.length}곳 · ${method}`;
+
+  // 그룹 렌더
+  const container = document.getElementById('bankGroups');
+  container.innerHTML = banks.map(bank=>{
+    const group = groups[bank];
+    const bankTotal = group.reduce((s,c)=>s+c.amount,0);
+    const account = group[0].account;
+    return `
+      <div class="bank-group">
+        <div class="bank-header">
+          <span class="bank-name">🏦 ${bank}</span>
+          <span class="bank-account">${account}</span>
+        </div>
+        <div class="card-items">
+          ${group.map(c=>`
+            <div class="card-item">
+              <div class="card-item-name">${c.cardName}</div>
+              <div class="card-item-day">매월 ${c.paymentDay}일</div>
+              <div class="card-item-amount">${c.amount.toLocaleString()}원</div>
+            </div>
+          `).join('')}
+          <div class="bank-sum-row">
+            <span class="bank-sum-label">📋 ${bank} 합계</span>
+            <span class="bank-sum-amount">${bankTotal.toLocaleString()}원</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('resultSection').className = 'show';
+  setTimeout(()=>{
+    document.getElementById('resultSection').scrollIntoView({behavior:'smooth',block:'start'});
+  },100);
+}
+
+// ═══════════════════════════════
+//  출력 선택
+// ═══════════════════════════════
+function selectOutput(type){
+  selectedOutput = type;
+  ['excel','text','image'].forEach(t=>{
+    document.getElementById('out'+t.charAt(0).toUpperCase()+t.slice(1))
+      .classList.toggle('selected', t===type);
+  });
+  const labels = {excel:'엑셀 다운로드', text:'텍스트 복사', image:'이미지 저장'};
+  document.getElementById('downloadLabel').textContent = labels[type];
+}
+
+// ═══════════════════════════════
+//  다운로드
+// ═══════════════════════════════
+function doDownload(){
+  if(currentCards.length===0){ showToast('⚠️ 먼저 정산표를 만들어 주세요'); return; }
+  if(selectedOutput==='excel') downloadExcel();
+  else if(selectedOutput==='text') copyText();
+  else downloadImage();
+}
+
+// 엑셀
+function downloadExcel(){
+  const now = new Date();
+  const groups = getGroups();
+  const BANK_O = ['우리은행','하나은행','토스뱅크','농협은행'];
+  const banks = Object.keys(groups).sort((a,b)=>{
+    return (BANK_O.indexOf(a)<0?99:BANK_O.indexOf(a))-(BANK_O.indexOf(b)<0?99:BANK_O.indexOf(b));
+  });
+
+  const rows = [['카드사','결제일','결제금액','결제은행','계좌번호']];
+  let grand = 0;
+  for(const bank of banks){
+    const g = groups[bank];
+    const bt = g.reduce((s,c)=>s+c.amount,0);
+    grand += bt;
+    g.forEach(c=> rows.push([c.cardName,`매월 ${c.paymentDay}일`,c.amount,c.bank,c.account]));
+    rows.push([`[${bank} 합계]`,'',bt,bank,g[0].account]);
+    rows.push([]);
+  }
+  rows.push(['전체 합계','',grand,'','']);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:16},{wch:12},{wch:14},{wch:12},{wch:24}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `${now.getMonth()+1}월 카드결제`);
+  const fname = `카드_결제내역_은행별합계_및_전체합계_${now.getFullYear()}년${now.getMonth()+1}월.xlsx`;
+  XLSX.writeFile(wb, fname);
+  showToast('✅ 엑셀 파일 다운로드 완료');
+}
+
+// 텍스트
+function copyText(){
+  const now = new Date();
+  const groups = getGroups();
+  const BANK_O = ['우리은행','하나은행','토스뱅크','농협은행'];
+  const banks = Object.keys(groups).sort((a,b)=>{
+    return (BANK_O.indexOf(a)<0?99:BANK_O.indexOf(a))-(BANK_O.indexOf(b)<0?99:BANK_O.indexOf(b));
+  });
+
+  let grand = 0;
+  let lines = [
+    `💳 카드 결제 정산 — ${now.getFullYear()}년 ${now.getMonth()+1}월`,
+    '─'.repeat(36), ''
+  ];
+  for(const bank of banks){
+    const g = groups[bank];
+    const bt = g.reduce((s,c)=>s+c.amount,0);
+    grand += bt;
+    lines.push(`🏦 ${bank}  (${g[0].account})`);
+    g.forEach(c=> lines.push(`  ${c.cardName.padEnd(12)}  매월${c.paymentDay}일  ${c.amount.toLocaleString()}원`));
+    lines.push(`  → 합계: ${bt.toLocaleString()}원`);
+    lines.push('');
+  }
+  lines.push('─'.repeat(36));
+  lines.push(`💰 전체 합계: ${grand.toLocaleString()}원`);
+
+  const text = lines.join('\n');
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(()=> showToast('✅ 클립보드에 복사되었습니다'));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('✅ 텍스트가 복사되었습니다');
+  }
+}
+
+// 이미지
+function downloadImage(){
+  const now = new Date();
+  const groups = getGroups();
+  const BANK_O = ['우리은행','하나은행','토스뱅크','농협은행'];
+  const banks = Object.keys(groups).sort((a,b)=>{
+    return (BANK_O.indexOf(a)<0?99:BANK_O.indexOf(a))-(BANK_O.indexOf(b)<0?99:BANK_O.indexOf(b));
+  });
+
+  const W = 600;
+  const LINE = 26, PAD = 28, HEADER = 90, BANK_H = 44, CARD_H = 32, FOOT = 70;
+  const totalLines = currentCards.length + banks.length * 2; // 카드행 + 소계행 + 간격
+  const H = HEADER + totalLines * LINE + banks.length * 16 + FOOT + PAD*2;
+
+  const canvas = document.getElementById('exportCanvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // 배경
+  ctx.fillStyle = '#F5F3EE';
+  ctx.fillRect(0,0,W,H);
+
+  // 헤더 바
+  ctx.fillStyle = '#1A1814';
+  ctx.fillRect(0,0,W,HEADER);
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 20px "Noto Sans KR", sans-serif';
+  ctx.fillText('💳 카드 정산 도우미', PAD, 38);
+
+  const grand = currentCards.reduce((s,c)=>s+c.amount,0);
+  ctx.font = 'bold 26px "DM Mono", monospace';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText(grand.toLocaleString()+'원', PAD, 72);
+
+  ctx.font = '12px "Noto Sans KR", sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText(`${now.getFullYear()}년 ${now.getMonth()+1}월 · 카드 ${currentCards.length}개 · 은행 ${banks.length}곳`, PAD, 86);
+
+  // 본문
+  let y = HEADER + PAD;
+
+  for(const bank of banks){
+    const g = groups[bank];
+    const bt = g.reduce((s,c)=>s+c.amount,0);
+
+    // 은행 헤더
+    ctx.fillStyle = '#E8E5DE';
+    roundRect(ctx, PAD-4, y-4, W-PAD*2+8, BANK_H, 8);
+    ctx.fill();
+    ctx.fillStyle = '#1A1814';
+    ctx.font = 'bold 13px "Noto Sans KR", sans-serif';
+    ctx.fillText(`🏦 ${bank}`, PAD+4, y+17);
+    ctx.fillStyle = '#A09C96';
+    ctx.font = '11px "DM Mono", monospace';
+    ctx.fillText(g[0].account, PAD+4, y+34);
+    y += BANK_H + 6;
+
+    // 카드 행들
+    for(const c of g){
+      ctx.fillStyle = '#6B6760';
+      ctx.font = '13px "Noto Sans KR", sans-serif';
+      ctx.fillText(c.cardName, PAD+8, y+16);
+
+      const amtW = ctx.measureText(c.amount.toLocaleString()+'원').width;
+      ctx.fillStyle = '#1A1814';
+      ctx.font = '500 13px "DM Mono", monospace';
+      ctx.fillText(c.amount.toLocaleString()+'원', W-PAD-amtW, y+16);
+
+      ctx.strokeStyle = '#DDD9CF';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(PAD, y+CARD_H); ctx.lineTo(W-PAD, y+CARD_H); ctx.stroke();
+      y += CARD_H;
+    }
+
+    // 소계
+    ctx.fillStyle = '#E8F5EE';
+    roundRect(ctx, PAD-4, y, W-PAD*2+8, 34, {bl:8, br:8, tl:0, tr:0});
+    ctx.fill();
+    ctx.fillStyle = '#1A7A4A';
+    ctx.font = 'bold 13px "Noto Sans KR", sans-serif';
+    ctx.fillText(`${bank} 합계`, PAD+4, y+21);
+    const stW = ctx.measureText(bt.toLocaleString()+'원').width;
+    ctx.fillText(bt.toLocaleString()+'원', W-PAD-stW, y+21);
+    y += 34 + 16;
+  }
+
+  // 하단 watermark
+  ctx.fillStyle = '#A09C96';
+  ctx.font = '11px "Noto Sans KR", sans-serif';
+  ctx.fillText('카드 정산 도우미 · 생성일: '+now.toLocaleDateString('ko-KR'), PAD, H-16);
+
+  // 다운로드
+  const link = document.createElement('a');
+  link.download = `카드정산_${now.getFullYear()}년${now.getMonth()+1}월.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  showToast('✅ 이미지 저장 완료');
+}
+
+function roundRect(ctx, x, y, w, h, r){
+  if(typeof r==='number') r={tl:r,tr:r,br:r,bl:r};
+  ctx.beginPath();
+  ctx.moveTo(x+r.tl,y);
+  ctx.lineTo(x+w-r.tr,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r.tr);
+  ctx.lineTo(x+w,y+h-r.br); ctx.quadraticCurveTo(x+w,y+h,x+w-r.br,y+h);
+  ctx.lineTo(x+r.bl,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r.bl);
+  ctx.lineTo(x,y+r.tl); ctx.quadraticCurveTo(x,y,x+r.tl,y);
+  ctx.closePath();
+}
+
+function getGroups(){
+  const g={};
+  for(const c of currentCards){if(!g[c.bank])g[c.bank]=[];g[c.bank].push(c);}
+  return g;
+}
+
+// ═══════════════════════════════
+//  API 키 AI 자동 감지
+// ═══════════════════════════════
+const AI_PROFILES = [
+  {
+    id: 'claude',
+    name: 'Claude (Anthropic)',
+    icon: '🤖',
+    desc: '이 앱 기본 AI · 이미지 분석에 최적화',
+    color: '#1A1814',
+    prefixes: ['sk-ant-'],
+    endpoint: 'https://api.anthropic.com/v1/messages'
+  },
+  {
+    id: 'openai',
+    name: 'ChatGPT (OpenAI)',
+    icon: '💬',
+    desc: 'GPT-4o 비전 모델 사용',
+    color: '#10A37F',
+    prefixes: ['sk-proj-', 'sk-'],
+    endpoint: 'https://api.openai.com/v1'
+  },
+  {
+    id: 'gemini',
+    name: 'Gemini (Google)',
+    icon: '✨',
+    desc: '무료 한도 제공 · 월 카드정산은 사실상 0원',
+    color: '#4285F4',
+    prefixes: ['AIza'],
+    endpoint: 'https://generativelanguage.googleapis.com'
+  }
+];
+
+function detectKeyProfile(key) {
+  if (!key || key.length < 8) return null;
+  for (const profile of AI_PROFILES) {
+    if (profile.prefixes.some(p => key.startsWith(p))) return profile;
+  }
+  // 길이로 추정 시도
+  if (key.length > 30) return null; // unknown but looks like a key
+  return null;
+}
+
+function detectApiKey(val) {
+  const key = val.trim();
+  const detected = document.getElementById('aiDetected');
+  const unknown = document.getElementById('aiUnknown');
+
+  if (!key) {
+    detected.style.display = 'none';
+    unknown.style.display = 'none';
+    return;
+  }
+
+  const profile = detectKeyProfile(key);
+
+  if (profile) {
+    document.getElementById('aiDetectedIcon').textContent = profile.icon;
+    document.getElementById('aiDetectedName').textContent = profile.name;
+    document.getElementById('aiDetectedDesc').textContent = profile.desc;
+    document.getElementById('aiDetectedInner').style.borderColor = profile.color;
+    document.getElementById('aiDetectedInner').style.background =
+      profile.id === 'claude' ? '#F0F0F0' :
+      profile.id === 'openai' ? '#F0FBF7' : '#EEF2FC';
+    detected.style.display = 'block';
+    unknown.style.display = 'none';
+  } else if (key.length > 15) {
+    detected.style.display = 'none';
+    unknown.style.display = 'block';
+  } else {
+    detected.style.display = 'none';
+    unknown.style.display = 'none';
+  }
+}
+
+let keyVisible = false;
+function toggleKeyVisibility() {
+  keyVisible = !keyVisible;
+  const inp = document.getElementById('apiKeyInput');
+  inp.type = keyVisible ? 'text' : 'password';
+  document.getElementById('eyeBtn').textContent = keyVisible ? '🙈' : '👁️';
+}
+
+function updateHeaderBtn(key) {
+  const btn = document.getElementById('headerApiBtn');
+  if (!key) { btn.textContent = '🔑 API 키'; return; }
+  const profile = detectKeyProfile(key);
+  if (profile) {
+    btn.textContent = `${profile.icon} ${profile.id === 'claude' ? 'Claude' : profile.id === 'openai' ? 'GPT' : 'Gemini'} 키 ✓`;
+    btn.style.background = 'rgba(34,197,94,0.15)';
+    btn.style.borderColor = 'rgba(34,197,94,0.4)';
+    btn.style.color = '#86efac';
+  } else {
+    btn.textContent = '🔑 API 키 ✓';
+    btn.style.background = 'rgba(34,197,94,0.15)';
+    btn.style.borderColor = 'rgba(34,197,94,0.4)';
+    btn.style.color = '#86efac';
+  }
+}
+
+// ═══════════════════════════════
+//  API 키 모달
+// ═══════════════════════════════
+function openApiModal(){
+  const saved = localStorage.getItem('claude_api_key');
+  if(saved) {
+    document.getElementById('apiKeyInput').value = saved;
+    detectApiKey(saved);
+  }
+  document.getElementById('modalBg').className='modal-bg show';
+}
+function closeModal(){
+  document.getElementById('modalBg').className='modal-bg';
+  // 닫을 때 visibility 초기화
+  keyVisible = false;
+  document.getElementById('apiKeyInput').type = 'password';
+  document.getElementById('eyeBtn').textContent = '👁️';
+}
+function saveApiKey(){
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if(!key){ showToast('⚠️ API 키를 입력해 주세요'); return; }
+  localStorage.setItem('claude_api_key', key);
+  updateHeaderBtn(key);
+  const profile = detectKeyProfile(key);
+  closeModal();
+  showToast(`✅ ${profile ? profile.name : 'API'} 키가 저장되었습니다`);
+}
+
+// ═══════════════════════════════
+//  AI 가이드 아코디언 토글
+// ═══════════════════════════════
+function toggleGuide(id){
+  const card = document.getElementById('guide-'+id);
+  const isOpen = card.classList.contains('open');
+  document.querySelectorAll('.ai-card').forEach(c=>c.classList.remove('open'));
+  if(!isOpen) card.classList.add('open');
+}
+
+// ═══════════════════════════════
+//  로딩 / 토스트
+// ═══════════════════════════════
+function showLoading(t,s){
+  document.getElementById('loadingText').textContent=t;
+  document.getElementById('loadingSub').textContent=s;
+  document.getElementById('loading').className='loading-overlay show';
+}
+function hideLoading(){ document.getElementById('loading').className='loading-overlay'; }
+
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.className='toast',2500);
+}
+</script>
+</body>
+</html>
