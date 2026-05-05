@@ -428,7 +428,15 @@ function parseOcrText(text){
     // ① 같은 줄에서 금액 찾기 (가장 신뢰도 높음)
     let amount = pickAmount(line);
 
-    // ② 없으면 바로 다음 줄에서만 (다음 줄에 다른 카드명 없을 때)
+    // ② 없으면 현재줄+다음줄 합쳐서 쪼개진 숫자 재조합 시도
+    if(!amount){
+      const combined = line + ' ' + (lines[i+1]||'');
+      const rejoined = combined.replace(/([0-9]{1,3})[\s,]([0-9]{3})[\s,]([0-9]{3})/g,'$1$2$3')
+                               .replace(/([0-9]{1,3})[\s,]([0-9]{3})(?=[^0-9])/g,'$1$2');
+      amount = pickAmount(rejoined);
+    }
+
+    // ③ 그래도 없으면 바로 다음 줄에서만 (다른 카드명 없을 때)
     if(!amount && i+1 < lines.length){
       const nextLine = lines[i+1];
       if(!matchCardName(nextLine)){
@@ -463,15 +471,29 @@ function parseOcrText(text){
   return results;
 }
 
-// 한 줄에서 유효 금액 하나만 뽑기 (가장 오른쪽 큰 숫자)
+// 한 줄에서 유효 금액 추출
+// 우선순위: ① 쉼표 포함 숫자(1,536,508) → ② 공백 쪼개진 숫자 재조합 → ③ 연속 숫자
 function pickAmount(line){
-  const matches = [...line.matchAll(/([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{5,8})/g)];
-  let best = 0;
-  for(const m of matches){
-    const n = parseInt(m[1].replace(/,/g,''),10);
-    if(n>=1000 && n<=50000000 && n>best) best=n;
+  // 1순위: 쉼표 포함 금액 패턴 (가장 신뢰도 높음)
+  const commaMatches = [...line.matchAll(/([0-9]{1,3}(?:,[0-9]{3})+)/g)];
+  if(commaMatches.length > 0){
+    let best = 0;
+    for(const m of commaMatches){
+      const n = parseInt(m[1].replace(/,/g,''), 10);
+      if(n >= 1000 && n <= 50000000 && n > best) best = n;
+    }
+    if(best > 0) return best;
   }
-  return best;
+  // 2순위: OCR이 쉼표를 공백으로 읽은 경우 → "1 536 508" 재조합
+  const joinedLine = line.replace(/([0-9]{1,3}) ([0-9]{3})(?= [0-9]{3}| |$)/g, '$1$2')
+                         .replace(/([0-9]{1,4}) ([0-9]{3})(?=[^0-9]|$)/g, '$1$2');
+  const joinedMatches = [...joinedLine.matchAll(/([0-9]{4,8})/g)];
+  let best2 = 0;
+  for(const m of joinedMatches){
+    const n = parseInt(m[1], 10);
+    if(n >= 10000 && n <= 50000000 && n > best2) best2 = n;
+  }
+  return best2;
 }
 
 function matchCardName(text){
