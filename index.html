@@ -234,7 +234,13 @@ const CARD_DB = [
   {name:'NH농협카드', keys:['농협카드','NH농협','nh농협','농협'], day:25, bank:'농협은행'},
 ];
 const BANK_ORDER = ['우리은행','하나은행','토스뱅크','농협은행'];
-const ALL_BANKS  = ['우리은행','하나은행','신한은행','국민은행','토스뱅크','농협은행','카카오뱅크','기업은행','케이뱅크'];
+const ALL_BANKS = [
+  '우리은행','하나은행','신한은행','국민은행','농협은행',
+  '토스뱅크','카카오뱅크','케이뱅크',
+  '기업은행','SC제일은행','씨티은행','대구은행','부산은행',
+  '경남은행','광주은행','전북은행','제주은행','수협은행',
+  '우체국','새마을금고','신협','저축은행','산업은행','수출입은행'
+];
 
 let currentFile = null;
 let currentCards = [];
@@ -441,11 +447,37 @@ function matchCardName(text){
 // ══════════════════════════════
 //  OCR 결과 렌더 (수정 가능)
 // ══════════════════════════════
-const ALL_BANKS_SEL = ['우리은행','하나은행','신한은행','국민은행','토스뱅크','농협은행','카카오뱅크','기업은행','케이뱅크','기타'];
+const ALL_BANKS_SEL = [
+  '우리은행','하나은행','신한은행','국민은행','농협은행',
+  '토스뱅크','카카오뱅크','케이뱅크',
+  '기업은행','SC제일은행','씨티은행','대구은행','부산은행',
+  '경남은행','광주은행','전북은행','제주은행','수협은행',
+  '우체국','새마을금고','신협','저축은행','산업은행',
+  '수출입은행','직접입력'
+];
 const DAYS_SEL = Array.from({length:31},(_,i)=>i+1);
 
 function bankOpts(sel='우리은행'){
   return ALL_BANKS_SEL.map(b=>`<option value="${b}"${b===sel?' selected':''}>${b}</option>`).join('');
+}
+
+function onBankChange(selectEl){
+  const row = selectEl.closest('.ocr-card-row') || selectEl.closest('.ocr-card-row');
+  const customInput = selectEl.parentElement.querySelector('.custom-bank-input');
+  if(selectEl.value === '직접입력'){
+    if(!customInput){
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.placeholder = '은행명 직접 입력';
+      inp.className = 'custom-bank-input';
+      inp.dataset.t = 'bank-custom';
+      inp.style.cssText = 'margin-top:6px;padding:8px 10px;background:var(--surface);border:1px solid var(--accent);border-radius:8px;font-size:13px;color:var(--ink);width:100%;font-family:"Noto Sans KR",sans-serif;outline:none;';
+      selectEl.parentElement.appendChild(inp);
+      inp.focus();
+    }
+  } else {
+    if(customInput) customInput.remove();
+  }
 }
 function dayOpts(sel=25){
   return DAYS_SEL.map(d=>`<option value="${d}"${d==sel?' selected':''}>${d}일</option>`).join('');
@@ -490,7 +522,7 @@ function addOcrRow(preset={}){
     <div class="ocr-row-bottom">
       <div>
         <div class="ocr-row-label">납부 은행</div>
-        <select data-t="bank">${bankOpts(defaultBank)}</select>
+        <select data-t="bank" onchange="onBankChange(this)">${bankOpts(defaultBank)}</select>
       </div>
       <div>
         <div class="ocr-row-label">납부일</div>
@@ -511,7 +543,9 @@ function confirmCards(){
     const name   = r.querySelector('[data-t="name"]').value.trim();
     const amtStr = r.querySelector('[data-t="amount"]').value.replace(/[^0-9]/g,'');
     const amt    = parseInt(amtStr, 10);
-    const bank   = r.querySelector('[data-t="bank"]').value;
+    const bankSel = r.querySelector('[data-t="bank"]').value;
+    const customBankInp = r.querySelector('[data-t="bank-custom"]');
+    const bank = (bankSel === '직접입력' && customBankInp) ? customBankInp.value.trim() || '기타' : bankSel;
     const day    = parseInt(r.querySelector('[data-t="day"]').value, 10);
     if(name && !isNaN(amt) && amt > 0){
       const info = matchCardName(name);
