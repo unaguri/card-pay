@@ -178,32 +178,42 @@ body{
 /* ── 수동 입력 ── */
 .manual-list{margin-bottom:14px}
 .manual-row{
-  display:grid;grid-template-columns:1fr 130px 36px;
-  gap:8px;margin-bottom:8px;align-items:center;
-}
-.manual-row input{
-  padding:10px 12px;
   background:var(--surface2);
   border:1px solid var(--border);
+  border-radius:12px;
+  padding:12px 12px 12px;
+  margin-bottom:10px;
+  position:relative;
+}
+.manual-row-top{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.manual-row-bottom{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.manual-row input,.manual-row select{
+  padding:9px 10px;
+  background:var(--surface);
+  border:1px solid var(--border);
   border-radius:8px;
-  font-size:14px;
-  color:var(--ink);
+  font-size:13px;color:var(--ink);
   font-family:'Noto Sans KR',sans-serif;
-  outline:none;
-  transition:border .2s;
-  width:100%;
+  outline:none;transition:border .2s;width:100%;
+  -webkit-appearance:none;appearance:none;
 }
-.manual-row input:focus{border-color:var(--accent)}
+.manual-row input:focus,.manual-row select:focus{border-color:var(--accent)}
 .manual-row input::placeholder{color:var(--ink3)}
-.del-btn{
-  width:36px;height:36px;
-  background:none;border:1px solid var(--border);
-  border-radius:8px;color:var(--ink3);
-  cursor:pointer;font-size:16px;
-  display:flex;align-items:center;justify-content:center;
-  transition:all .15s;flex-shrink:0;
+.manual-row select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23A09C96'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;
 }
-.del-btn:hover{border-color:var(--red);color:var(--red);background:#FEF2F2}
+.row-del-btn{
+  position:absolute;top:10px;right:10px;
+  width:22px;height:22px;
+  background:none;border:1px solid var(--border);
+  border-radius:6px;color:var(--ink3);
+  cursor:pointer;font-size:12px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;
+}
+.row-del-btn:hover{border-color:var(--red);color:var(--red);background:#FEF2F2}
+.row-label{font-size:10px;color:var(--ink3);margin-bottom:3px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase}
 .add-row-btn{
   width:100%;padding:9px;
   background:none;border:1px dashed var(--border);
@@ -214,6 +224,57 @@ body{
   transition:all .15s;
 }
 .add-row-btn:hover{border-color:var(--accent);color:var(--accent)}
+/* 은행 계좌 설정 */
+.bank-settings-grid{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.bank-setting-row{
+  display:grid;grid-template-columns:100px 1fr 28px;
+  gap:8px;align-items:center;
+}
+.bank-setting-name{font-size:13px;font-weight:600;color:var(--ink2)}
+.bank-setting-input{
+  padding:8px 10px;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;font-size:12px;color:var(--ink);
+  font-family:'DM Mono',monospace;outline:none;transition:border .2s;width:100%;
+}
+.bank-setting-input:focus{border-color:var(--accent)}
+.bank-saved-badge{
+  font-size:10px;font-weight:700;
+  background:var(--green-light);color:var(--green);
+  border-radius:4px;padding:2px 6px;margin-left:6px;
+}
+/* 집계 결과 — 은행×날짜 */
+.summary-group{
+  border:1px solid var(--border);border-radius:12px;
+  overflow:hidden;margin-bottom:12px;
+}
+.summary-header{
+  background:var(--ink);color:#fff;
+  padding:11px 14px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.summary-header-bank{font-size:13px;font-weight:700}
+.summary-header-date{
+  font-size:11px;color:rgba(255,255,255,0.55);
+  background:rgba(255,255,255,0.1);
+  border-radius:4px;padding:2px 8px;
+}
+.summary-card-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;border-bottom:1px solid var(--border);
+  font-size:13px;
+}
+.summary-card-row:last-child{border-bottom:none}
+.summary-card-name{color:var(--ink2)}
+.summary-card-amt{font-family:'DM Mono',monospace;font-weight:500}
+.summary-total-row{
+  background:var(--green-light);
+  padding:10px 14px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.summary-total-label{font-size:12px;font-weight:700;color:var(--green)}
+.summary-total-amt{font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--green)}
+.summary-account{font-size:11px;color:var(--ink3);font-family:'DM Mono',monospace}
 
 /* ── 로딩 ── */
 .loading-overlay{
@@ -517,7 +578,7 @@ body{
 
 /* ── 반응형 ── */
 @media(max-width:480px){
-  .manual-row{grid-template-columns:1fr 110px 36px}
+  /* manual-row responsive handled */
   .total-amount{font-size:24px}
   .output-tabs{gap:6px}
   .output-tab{padding:10px 4px}
@@ -601,6 +662,24 @@ body{
 
     <!-- 수동 입력 모드 -->
     <div id="modeManual" style="display:none">
+      <!-- 은행 계좌 설정 -->
+      <div style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;color:var(--ink2)">🏦 납부 은행 계좌 설정</div>
+          <button onclick="toggleBankSettings()" id="bankSettingsToggle"
+            style="font-size:11px;color:var(--accent);background:none;border:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-weight:600">
+            ▼ 펼치기
+          </button>
+        </div>
+        <div id="bankSettingsPanel" style="display:none">
+          <div class="bank-settings-grid" id="bankSettingsGrid"></div>
+          <button class="btn btn-secondary" onclick="saveBankSettings()" style="margin-top:4px;padding:9px">
+            💾 계좌 저장
+          </button>
+        </div>
+      </div>
+
+      <!-- 카드 입력 목록 -->
       <div class="manual-list" id="manualList"></div>
       <button class="add-row-btn" onclick="addManualRow()">+ 카드 추가</button>
       <button class="btn btn-primary" onclick="processManual()" style="margin-top:14px">
@@ -628,6 +707,12 @@ body{
 
       <!-- 은행별 그룹 -->
       <div id="bankGroups"></div>
+    </div>
+
+    <!-- 은행×날짜 집계 -->
+    <div class="card" id="summaryCard" style="display:none">
+      <div class="card-title">📋 은행별 납부 집계</div>
+      <div id="summaryGroups"></div>
     </div>
 
     <!-- STEP 3: 출력 -->
@@ -903,6 +988,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('apiKeyInput').value = saved;
     updateHeaderBtn(saved);
   }
+  // 저장된 계좌 있으면 뱃지 표시
+  const accts = JSON.parse(localStorage.getItem('bank_accounts')||'{}');
+  if(Object.keys(accts).length > 0){
+    const toggle = document.getElementById('bankSettingsToggle');
+    if(toggle) toggle.textContent = '▼ 펼치기 ('+Object.keys(accts).length+'개 저장됨)';
+  }
 });
 
 function updateMonth(){
@@ -1070,15 +1161,42 @@ function fileToBase64(file){
 // ═══════════════════════════════
 //  수동 입력
 // ═══════════════════════════════
-function addManualRow(){
+const BANKS_LIST = ['우리은행','하나은행','신한은행','국민은행','토스뱅크','농협은행','카카오뱅크','기업은행','케이뱅크','기타'];
+const DAYS_LIST = Array.from({length:31},(_,i)=>i+1);
+
+function getBankOptions(selected=''){
+  return BANKS_LIST.map(b=>`<option value="${b}" ${b===selected?'selected':''}>${b}</option>`).join('');
+}
+function getDayOptions(selected=25){
+  return DAYS_LIST.map(d=>`<option value="${d}" ${d==selected?'selected':''}>${d}일</option>`).join('');
+}
+
+function addManualRow(preset={}){
   const list = document.getElementById('manualList');
-  const idx = list.children.length;
   const row = document.createElement('div');
   row.className = 'manual-row';
   row.innerHTML = `
-    <input type="text" placeholder="카드사명 (예: KB국민카드)" data-type="name"/>
-    <input type="text" placeholder="금액 (예: 715750)" data-type="amount" inputmode="numeric"/>
-    <button class="del-btn" onclick="this.parentElement.remove()">×</button>
+    <button class="row-del-btn" onclick="this.parentElement.remove()">×</button>
+    <div class="manual-row-top">
+      <div>
+        <div class="row-label">카드사</div>
+        <input type="text" placeholder="KB국민카드" data-type="name" value="${preset.cardName||''}"/>
+      </div>
+      <div>
+        <div class="row-label">결제금액</div>
+        <input type="text" placeholder="715750" data-type="amount" inputmode="numeric" value="${preset.amount||''}"/>
+      </div>
+    </div>
+    <div class="manual-row-bottom">
+      <div>
+        <div class="row-label">납부 은행</div>
+        <select data-type="bank">${getBankOptions(preset.bank||'우리은행')}</select>
+      </div>
+      <div>
+        <div class="row-label">납부일</div>
+        <select data-type="day">${getDayOptions(preset.day||25)}</select>
+      </div>
+    </div>
   `;
   list.appendChild(row);
 }
@@ -1090,7 +1208,9 @@ function processManual(){
     const name = row.querySelector('[data-type="name"]').value.trim();
     const amtStr = row.querySelector('[data-type="amount"]').value.replace(/[^0-9]/g,'');
     const amt = parseInt(amtStr,10);
-    if(name && !isNaN(amt) && amt>0) cards.push({cardName:name, amount:amt});
+    const bank = row.querySelector('[data-type="bank"]').value;
+    const day = parseInt(row.querySelector('[data-type="day"]').value,10);
+    if(name && !isNaN(amt) && amt>0) cards.push({cardName:name, amount:amt, bank, paymentDay:day});
   });
   if(cards.length===0){ showToast('⚠️ 카드사와 금액을 입력해 주세요'); return; }
   buildResult(cards, '직접 입력');
@@ -1108,37 +1228,42 @@ function matchCard(rawName){
   return null;
 }
 
+function getBankAccount(bankName){
+  const saved = JSON.parse(localStorage.getItem('bank_accounts')||'{}');
+  return saved[bankName] || '-';
+}
+
 function buildResult(rawCards, method){
   currentCards = rawCards.map(r=>{
+    // AI 분석결과면 CARD_SETTINGS로 매핑, 수동입력이면 bank/day 그대로 사용
     const info = matchCard(r.cardName);
+    const bank = r.bank || (info ? info.bank : '미확인');
+    const day = r.paymentDay || (info ? info.paymentDay : 25);
     return {
       cardName: info ? info.cardName : r.cardName,
       amount: r.amount,
-      paymentDay: info ? info.paymentDay : 25,
-      bank: info ? info.bank : '미확인',
-      account: info ? info.account : '-',
+      paymentDay: day,
+      bank: bank,
+      account: getBankAccount(bank) || (info ? info.account : '-'),
     };
   });
 
-  // 은행별 그룹
+  // ── 기존 은행별 그룹 (STEP2 상세) ──
   const groups = {};
-  for(const c of currentCards){
-    if(!groups[c.bank]) groups[c.bank]=[];
-    groups[c.bank].push(c);
+  for(const card of currentCards){
+    if(!groups[card.bank]) groups[card.bank]=[];
+    groups[card.bank].push(card);
   }
   const banks = Object.keys(groups).sort((a,b)=>{
     const ai=BANK_ORDER.indexOf(a),bi=BANK_ORDER.indexOf(b);
     return (ai<0?99:ai)-(bi<0?99:bi);
   });
-
   const grandTotal = currentCards.reduce((s,c)=>s+c.amount,0);
 
-  // 히어로
   document.getElementById('grandTotalDisplay').textContent = grandTotal.toLocaleString()+'원';
   document.getElementById('cardCountDisplay').textContent =
     `카드 ${currentCards.length}개 · 은행 ${banks.length}곳 · ${method}`;
 
-  // 그룹 렌더
   const container = document.getElementById('bankGroups');
   container.innerHTML = banks.map(bank=>{
     const group = groups[bank];
@@ -1167,10 +1292,89 @@ function buildResult(rawCards, method){
     `;
   }).join('');
 
+  // ── 은행 × 날짜 집계 (핵심!) ──
+  const summaryMap = {}; // key: "은행명__날짜"
+  for(const card of currentCards){
+    const key = `${card.bank}__${card.paymentDay}`;
+    if(!summaryMap[key]) summaryMap[key] = {bank:card.bank, day:card.paymentDay, account:card.account, cards:[]};
+    summaryMap[key].cards.push(card);
+  }
+  // 정렬: 은행 우선순위 → 날짜 오름차순
+  const summaryKeys = Object.keys(summaryMap).sort((a,b)=>{
+    const ga=summaryMap[a], gb=summaryMap[b];
+    const bi=(BANK_ORDER.indexOf(ga.bank)<0?99:BANK_ORDER.indexOf(ga.bank));
+    const bj=(BANK_ORDER.indexOf(gb.bank)<0?99:BANK_ORDER.indexOf(gb.bank));
+    if(bi!==bj) return bi-bj;
+    return ga.day - gb.day;
+  });
+
+  const summaryContainer = document.getElementById('summaryGroups');
+  summaryContainer.innerHTML = summaryKeys.map(key=>{
+    const g = summaryMap[key];
+    const total = g.cards.reduce((s,c)=>s+c.amount,0);
+    return `
+      <div class="summary-group">
+        <div class="summary-header">
+          <span class="summary-header-bank">🏦 ${g.bank}</span>
+          <span class="summary-header-date">매월 ${g.day}일 납부</span>
+        </div>
+        ${g.cards.map(c=>`
+          <div class="summary-card-row">
+            <span class="summary-card-name">${c.cardName}</span>
+            <span class="summary-card-amt">${c.amount.toLocaleString()}원</span>
+          </div>
+        `).join('')}
+        <div class="summary-total-row">
+          <div>
+            <div class="summary-total-label">💰 이체 금액</div>
+            <div class="summary-account">${g.account}</div>
+          </div>
+          <span class="summary-total-amt">${total.toLocaleString()}원</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('summaryCard').style.display = 'block';
   document.getElementById('resultSection').className = 'show';
   setTimeout(()=>{
     document.getElementById('resultSection').scrollIntoView({behavior:'smooth',block:'start'});
   },100);
+}
+
+// ── 은행 계좌 설정 ──
+const BANK_ACCOUNT_LIST = ['우리은행','하나은행','신한은행','국민은행','토스뱅크','농협은행','카카오뱅크','기업은행','케이뱅크'];
+
+function initBankSettings(){
+  const saved = JSON.parse(localStorage.getItem('bank_accounts')||'{}');
+  const grid = document.getElementById('bankSettingsGrid');
+  if(!grid) return;
+  grid.innerHTML = BANK_ACCOUNT_LIST.map(bank=>`
+    <div class="bank-setting-row">
+      <div class="bank-setting-name">${bank}</div>
+      <input class="bank-setting-input" data-bank="${bank}"
+        placeholder="계좌번호" value="${saved[bank]||''}"/>
+    </div>
+  `).join('');
+}
+
+function toggleBankSettings(){
+  const panel = document.getElementById('bankSettingsPanel');
+  const btn = document.getElementById('bankSettingsToggle');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  btn.textContent = isOpen ? '▼ 펼치기' : '▲ 접기';
+  if(!isOpen) initBankSettings();
+}
+
+function saveBankSettings(){
+  const inputs = document.querySelectorAll('.bank-setting-input');
+  const data = {};
+  inputs.forEach(inp=>{ if(inp.value.trim()) data[inp.dataset.bank]=inp.value.trim(); });
+  localStorage.setItem('bank_accounts', JSON.stringify(data));
+  showToast('✅ 계좌번호가 저장되었습니다');
+  document.getElementById('bankSettingsPanel').style.display='none';
+  document.getElementById('bankSettingsToggle').textContent='▼ 펼치기';
 }
 
 // ═══════════════════════════════
