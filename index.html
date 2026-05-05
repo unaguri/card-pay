@@ -576,7 +576,7 @@ function addOcrRow(preset={}){
       <div>
         <div class="ocr-row-label">결제금액</div>
         <input type="text" placeholder="715,750" inputmode="numeric"
-          data-t="amount" value="${preset.amount ? preset.amount.toLocaleString() : ''}">
+          data-t="amount" oninput="onAmountInput()" value="${preset.amount ? preset.amount.toLocaleString() : ''}">
       </div>
     </div>
     <div class="ocr-row-bottom">
