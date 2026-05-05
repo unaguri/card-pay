@@ -56,10 +56,15 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--ink)
 .ocr-result{margin-top:14px;display:none;}
 .ocr-result.show{display:block;}
 .ocr-title{font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
-.ocr-row{display:grid;grid-template-columns:1fr 120px 24px;gap:8px;margin-bottom:6px;align-items:center;}
-.ocr-row input{padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--ink);font-family:'Noto Sans KR',sans-serif;outline:none;width:100%;}
-.ocr-row input:focus{border-color:var(--accent);}
-.ocr-del{width:24px;height:24px;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;color:var(--ink3);display:flex;align-items:center;justify-content:center;}
+.ocr-card-row{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;position:relative;}
+.ocr-row-top{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.ocr-row-bottom{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.ocr-row-label{font-size:10px;color:var(--ink3);margin-bottom:3px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
+.ocr-card-row input,.ocr-card-row select{padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--ink);font-family:'Noto Sans KR',sans-serif;outline:none;transition:border .2s;width:100%;-webkit-appearance:none;appearance:none;}
+.ocr-card-row input:focus,.ocr-card-row select:focus{border-color:var(--accent);}
+.ocr-card-row input::placeholder{color:var(--ink3);}
+.ocr-card-row select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23A09C96'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+.ocr-del{position:absolute;top:10px;right:10px;width:22px;height:22px;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;color:var(--ink3);display:flex;align-items:center;justify-content:center;}
 .ocr-del:hover{border-color:var(--red);color:var(--red);}
 .add-btn{width:100%;padding:8px;background:none;border:1px dashed var(--border);border-radius:8px;color:var(--ink3);font-size:13px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:4px;}
 .add-btn:hover{border-color:var(--accent);color:var(--accent);}
@@ -338,14 +343,24 @@ function matchCardName(text){
 // ══════════════════════════════
 //  OCR 결과 렌더 (수정 가능)
 // ══════════════════════════════
+const ALL_BANKS_SEL = ['우리은행','하나은행','신한은행','국민은행','토스뱅크','농협은행','카카오뱅크','기업은행','케이뱅크','기타'];
+const DAYS_SEL = Array.from({length:31},(_,i)=>i+1);
+
+function bankOpts(sel='우리은행'){
+  return ALL_BANKS_SEL.map(b=>`<option value="${b}"${b===sel?' selected':''}>${b}</option>`).join('');
+}
+function dayOpts(sel=25){
+  return DAYS_SEL.map(d=>`<option value="${d}"${d==sel?' selected':''}>${d}일</option>`).join('');
+}
+
 function renderOcrResult(cards){
   const list = document.getElementById('ocrList');
+  list.innerHTML = '';
 
   if(cards.length === 0){
-    list.innerHTML = `<p style="font-size:13px;color:var(--ink3);margin-bottom:10px;">
-      자동 인식이 어렵습니다. 아래에 직접 입력해 주세요.</p>`;
+    // 빈 행 3개 기본 제공
+    addOcrRow(); addOcrRow(); addOcrRow();
   } else {
-    list.innerHTML = '';
     cards.forEach(c => addOcrRow(c));
   }
 
@@ -355,13 +370,35 @@ function renderOcrResult(cards){
 
 function addOcrRow(preset={}){
   const list = document.getElementById('ocrList');
+  const info = preset.cardName ? matchCardName(preset.cardName) : null;
+  const defaultBank = preset.bank || (info ? info.bank : '우리은행');
+  const defaultDay  = preset.day  || (info ? info.day  : 25);
+
   const div = document.createElement('div');
-  div.className = 'ocr-row';
+  div.className = 'ocr-card-row';
   div.innerHTML = `
-    <input type="text" placeholder="카드사명" value="${preset.cardName||''}" data-t="name">
-    <input type="text" placeholder="금액" inputmode="numeric"
-      value="${preset.amount ? preset.amount.toLocaleString() : ''}" data-t="amount">
     <button class="ocr-del" onclick="this.parentElement.remove()">×</button>
+    <div class="ocr-row-top">
+      <div>
+        <div class="ocr-row-label">카드사</div>
+        <input type="text" placeholder="KB국민카드" data-t="name" value="${preset.cardName||''}">
+      </div>
+      <div>
+        <div class="ocr-row-label">결제금액</div>
+        <input type="text" placeholder="715,750" inputmode="numeric"
+          data-t="amount" value="${preset.amount ? preset.amount.toLocaleString() : ''}">
+      </div>
+    </div>
+    <div class="ocr-row-bottom">
+      <div>
+        <div class="ocr-row-label">납부 은행</div>
+        <select data-t="bank">${bankOpts(defaultBank)}</select>
+      </div>
+      <div>
+        <div class="ocr-row-label">납부일</div>
+        <select data-t="day">${dayOpts(defaultDay)}</select>
+      </div>
+    </div>
   `;
   list.appendChild(div);
 }
@@ -370,24 +407,25 @@ function addOcrRow(preset={}){
 //  정산표 생성
 // ══════════════════════════════
 function confirmCards(){
-  const rows = document.querySelectorAll('#ocrList .ocr-row');
+  const rows = document.querySelectorAll('#ocrList .ocr-card-row');
   const cards = [];
   rows.forEach(r => {
     const name   = r.querySelector('[data-t="name"]').value.trim();
     const amtStr = r.querySelector('[data-t="amount"]').value.replace(/[^0-9]/g,'');
     const amt    = parseInt(amtStr, 10);
+    const bank   = r.querySelector('[data-t="bank"]').value;
+    const day    = parseInt(r.querySelector('[data-t="day"]').value, 10);
     if(name && !isNaN(amt) && amt > 0){
       const info = matchCardName(name);
       cards.push({
         name:  info ? info.name : name,
         amount: amt,
-        bank:  info ? info.bank : '미확인',
-        day:   info ? info.day  : 25,
-        acct:  getAcct(info ? info.bank : '미확인')
+        bank,
+        day,
+        acct: getAcct(bank)
       });
     }
   });
-
   if(!cards.length){ toast('⚠️ 카드사와 금액을 입력해 주세요'); return; }
   currentCards = cards;
   buildResult();
