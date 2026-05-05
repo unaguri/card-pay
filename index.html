@@ -184,7 +184,19 @@ canvas{display:none;}
     <div class="card-title">납부 은행 계좌 설정</div>
     <p style="font-size:12px;color:var(--ink3);margin-bottom:12px;">한 번만 입력하면 저장됩니다. 언제든 수정 가능.</p>
     <div id="bankGrid"></div>
-    <button class="btn btn-secondary" onclick="saveBanks()" style="margin-top:8px;padding:10px;font-size:13px;">💾 저장</button>
+    <!-- 은행 직접 추가 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 36px;gap:8px;margin-top:10px;align-items:center;">
+      <input id="newBankName" type="text" placeholder="은행명 직접 입력"
+        style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--ink);font-family:'Noto Sans KR',sans-serif;outline:none;width:100%;">
+      <input id="newBankAcct" type="text" placeholder="계좌번호"
+        style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--ink);font-family:'DM Mono',monospace;outline:none;width:100%;">
+      <button onclick="addCustomBank()"
+        style="width:36px;height:36px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+      <button class="btn btn-secondary" onclick="saveBanks()" style="margin-top:0;padding:10px;font-size:13px;">💾 저장</button>
+      <button class="btn btn-secondary" onclick="resetBanks()" style="margin-top:0;padding:10px;font-size:13px;color:var(--red);">🗑️ 초기화</button>
+    </div>
   </div>
 
   <!-- STEP 2: 결과 -->
@@ -406,25 +418,22 @@ function preprocessImage(file){
 function parseOcrText(text){
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   const results = [];
-  const seenCards = new Set(); // 중복 방지
+  const seenCards = new Set();
 
   for(let i = 0; i < lines.length; i++){
     const line = lines[i];
     const cardInfo = matchCardName(line);
-    if(!cardInfo) continue;
+    if(!cardInfo || seenCards.has(cardInfo.name)) continue;
 
-    // 같은 카드 중복 방지
-    if(seenCards.has(cardInfo.name)) continue;
+    // ① 같은 줄에서 금액 찾기 (가장 신뢰도 높음)
+    let amount = pickAmount(line);
 
-    // 같은 줄 또는 다음 1~2줄에서 금액 찾기
-    let amount = 0;
-    const searchText = [line, lines[i+1]||'', lines[i+2]||''].join(' ');
-    const matches = [...searchText.matchAll(/([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{5,})/g)];
-
-    for(const m of matches){
-      const num = parseInt(m[1].replace(/,/g,''), 10);
-      // 유효 금액 범위: 1,000원 ~ 50,000,000원
-      if(num > amount && num >= 1000 && num <= 50000000) amount = num;
+    // ② 없으면 바로 다음 줄에서만 (다음 줄에 다른 카드명 없을 때)
+    if(!amount && i+1 < lines.length){
+      const nextLine = lines[i+1];
+      if(!matchCardName(nextLine)){
+        amount = pickAmount(nextLine);
+      }
     }
 
     if(amount > 0){
@@ -433,7 +442,36 @@ function parseOcrText(text){
     }
   }
 
+  // 결과 없으면 전체에서 카드명+금액 패턴 재시도
+  if(results.length === 0){
+    const flat = text.replace(/\n/g,' ');
+    for(const card of CARD_DB){
+      for(const key of card.keys){
+        const re = new RegExp(key+'[^가-힣]{0,20}?([0-9,]{5,})', 'i');
+        const m = flat.match(re);
+        if(m && !seenCards.has(card.name)){
+          const num = parseInt(m[1].replace(/,/g,''),10);
+          if(num>=1000 && num<=50000000){
+            seenCards.add(card.name);
+            results.push({cardName:card.name, amount:num, bank:card.bank, day:card.day});
+            break;
+          }
+        }
+      }
+    }
+  }
   return results;
+}
+
+// 한 줄에서 유효 금액 하나만 뽑기 (가장 오른쪽 큰 숫자)
+function pickAmount(line){
+  const matches = [...line.matchAll(/([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{5,8})/g)];
+  let best = 0;
+  for(const m of matches){
+    const n = parseInt(m[1].replace(/,/g,''),10);
+    if(n>=1000 && n<=50000000 && n>best) best=n;
+  }
+  return best;
 }
 
 function matchCardName(text){
@@ -522,7 +560,7 @@ function addOcrRow(preset={}){
     <div class="ocr-row-bottom">
       <div>
         <div class="ocr-row-label">납부 은행</div>
-        <select data-t="bank" onchange="onBankChange(this)">${bankOpts(defaultBank)}</select>
+        <select data-t="bank" onchange="onBankChange(this)">${getAllBankOpts(defaultBank)}</select>
       </div>
       <div>
         <div class="ocr-row-label">납부일</div>
@@ -568,24 +606,86 @@ function confirmCards(){
 // ══════════════════════════════
 function renderBankGrid(){
   const saved = JSON.parse(localStorage.getItem('bank_accts')||'{}');
-  document.getElementById('bankGrid').innerHTML = ALL_BANKS.map(b => `
-    <div class="bank-row">
-      <div class="bank-name">${b}</div>
+  // 기본 은행 + 저장된 커스텀 은행 합치기
+  const customBanks = JSON.parse(localStorage.getItem('custom_banks')||'[]');
+  const allToShow = [...new Set([...ALL_BANKS, ...customBanks])];
+
+  document.getElementById('bankGrid').innerHTML = allToShow.map(b => `
+    <div class="bank-row" style="display:grid;grid-template-columns:90px 1fr 28px;gap:8px;align-items:center;margin-bottom:6px;">
+      <div class="bank-name" style="font-size:12px;font-weight:600;color:var(--ink2);">${b}</div>
       <input class="bank-input" data-bank="${b}" placeholder="계좌번호" value="${saved[b]||''}">
+      ${customBanks.includes(b) ? `<button onclick="removeCustomBank('${b}')" style="width:28px;height:28px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--ink3);cursor:pointer;font-size:12px;" title="삭제">×</button>` : '<div></div>'}
     </div>`).join('');
 }
 
+function addCustomBank(){
+  const name = document.getElementById('newBankName').value.trim();
+  const acct = document.getElementById('newBankAcct').value.trim();
+  if(!name){ toast('⚠️ 은행명을 입력해 주세요'); return; }
+
+  const customs = JSON.parse(localStorage.getItem('custom_banks')||'[]');
+  if(!customs.includes(name)) customs.push(name);
+  localStorage.setItem('custom_banks', JSON.stringify(customs));
+
+  // 계좌번호도 바로 저장
+  if(acct){
+    const saved = JSON.parse(localStorage.getItem('bank_accts')||'{}');
+    saved[name] = acct;
+    localStorage.setItem('bank_accts', JSON.stringify(saved));
+  }
+
+  document.getElementById('newBankName').value = '';
+  document.getElementById('newBankAcct').value = '';
+  renderBankGrid();
+  // 드롭다운 목록도 업데이트
+  refreshBankSelects();
+  toast(`✅ ${name} 추가됨`);
+}
+
+function removeCustomBank(bankName){
+  const customs = JSON.parse(localStorage.getItem('custom_banks')||'[]');
+  const idx = customs.indexOf(bankName);
+  if(idx > -1) customs.splice(idx,1);
+  localStorage.setItem('custom_banks', JSON.stringify(customs));
+  renderBankGrid();
+  toast(`🗑️ ${bankName} 삭제됨`);
+}
+
 function saveBanks(){
-  const data = {};
+  const data = JSON.parse(localStorage.getItem('bank_accts')||'{}');
   document.querySelectorAll('.bank-input').forEach(i => {
     if(i.value.trim()) data[i.dataset.bank] = i.value.trim();
+    else delete data[i.dataset.bank];
   });
   localStorage.setItem('bank_accts', JSON.stringify(data));
   toast('✅ 계좌번호 저장 완료');
 }
 
+function resetBanks(){
+  if(!confirm('모든 계좌번호를 초기화할까요?')) return;
+  localStorage.removeItem('bank_accts');
+  localStorage.removeItem('custom_banks');
+  renderBankGrid();
+  toast('🗑️ 초기화 완료');
+}
+
 function getAcct(bank){
-  return (JSON.parse(localStorage.getItem('bank_accts')||'{}')||{})[bank] || '-';
+  return (JSON.parse(localStorage.getItem('bank_accts')||'{}')||{})[bank] || '';
+}
+
+// 카드 행의 은행 드롭다운에 커스텀 은행 반영
+function refreshBankSelects(){
+  const customs = JSON.parse(localStorage.getItem('custom_banks')||'[]');
+  document.querySelectorAll('[data-t="bank"]').forEach(sel => {
+    const cur = sel.value;
+    sel.innerHTML = getAllBankOpts(cur);
+  });
+}
+
+function getAllBankOpts(sel='우리은행'){
+  const customs = JSON.parse(localStorage.getItem('custom_banks')||'[]');
+  const all = [...new Set([...ALL_BANKS_SEL.filter(b=>b!=='직접입력'), ...customs, '직접입력'])];
+  return all.map(b=>`<option value="${b}"${b===sel?' selected':''}>${b}</option>`).join('');
 }
 
 // ══════════════════════════════
@@ -629,11 +729,13 @@ function buildResult(){
             <span class="sum-card-amt">${c.amount.toLocaleString()}원</span>
           </div>`).join('')}
         <div class="sum-total">
-          <div>
+          <div style="flex:1;min-width:0;">
             <div class="sum-total-label">💰 이체 합계</div>
-            <div class="sum-account">${g.acct}</div>
+            <div class="sum-account" style="font-size:12px;color:${g.acct ? 'var(--ink3)' : 'var(--amber)'};font-family:'DM Mono',monospace;margin-top:2px;word-break:break-all;">
+              ${g.acct || '⚠️ 계좌번호 미등록 — 위 계좌 설정에서 입력'}
+            </div>
           </div>
-          <span class="sum-total-amt">${tot.toLocaleString()}원</span>
+          <span class="sum-total-amt" style="flex-shrink:0;margin-left:12px;">${tot.toLocaleString()}원</span>
         </div>
       </div>`;
   }).join('');
