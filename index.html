@@ -117,9 +117,23 @@ canvas{display:none;}
 <div class="top-bar">
   <div class="top-inner">
     <div class="logo-icon">💳</div>
-    <div>
+    <div style="flex:1">
       <div class="logo-text">카드 정산 도우미</div>
       <div class="logo-sub">캡처 이미지 업로드 → 자동 인식 → 정산표 출력</div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+      <select id="selYear" onchange="updateResultMonth()"
+        style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);
+        border-radius:8px;color:#fff;font-size:13px;font-weight:600;
+        padding:6px 10px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+        -webkit-appearance:none;appearance:none;outline:none;">
+      </select>
+      <select id="selMonth" onchange="updateResultMonth()"
+        style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);
+        border-radius:8px;color:#fff;font-size:13px;font-weight:600;
+        padding:6px 10px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+        -webkit-appearance:none;appearance:none;outline:none;">
+      </select>
     </div>
   </div>
 </div>
@@ -231,7 +245,44 @@ let selectedOut  = 'excel';
 // ══════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   renderBankGrid();
+  initYearMonth();
 });
+
+function initYearMonth(){
+  const now = new Date();
+  const yearSel = document.getElementById('selYear');
+  const monthSel = document.getElementById('selMonth');
+
+  // 년도: 현재 기준 -1 ~ +1
+  for(let y = now.getFullYear()-1; y <= now.getFullYear()+1; y++){
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y + '년';
+    if(y === now.getFullYear()) opt.selected = true;
+    yearSel.appendChild(opt);
+  }
+
+  // 월: 1~12
+  for(let m = 1; m <= 12; m++){
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m + '월';
+    if(m === now.getMonth()+1) opt.selected = true;
+    monthSel.appendChild(opt);
+  }
+}
+
+function getSelectedYearMonth(){
+  const y = parseInt(document.getElementById('selYear').value, 10);
+  const m = parseInt(document.getElementById('selMonth').value, 10);
+  return {year: y, month: m};
+}
+
+function updateResultMonth(){
+  const {year, month} = getSelectedYearMonth();
+  const el = document.getElementById('cardCount');
+  if(el) el.textContent = el.textContent.replace(/\d{4}년 \d{1,2}월/, `${year}년 ${month}월`);
+}
 
 // ══════════════════════════════
 //  이미지 업로드
@@ -270,7 +321,10 @@ async function startScan(){
   setProgress(5);
 
   try {
-    const result = await Tesseract.recognize(currentFile, 'kor+eng', {
+    // 이미지 전처리: 대비 강화로 OCR 정확도 향상
+    const processedBlob = await preprocessImage(currentFile);
+
+    const result = await Tesseract.recognize(processedBlob, 'kor+eng', {
       logger: m => {
         if(m.status === 'recognizing text'){
           setProgress(10 + Math.round(m.progress * 85));
@@ -297,34 +351,78 @@ function setProgress(pct){
   document.getElementById('progressFill').style.width = pct + '%';
 }
 
+
+// ══════════════════════════════
+//  이미지 전처리 (OCR 정확도 향상)
+// ══════════════════════════════
+function preprocessImage(file){
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      // 2배 확대 + 대비/밝기 조정으로 OCR 정확도 향상
+      const scale = Math.min(2, 1200 / Math.max(img.width, img.height));
+      const w = img.width * scale;
+      const h = img.height * scale;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+
+      // 흰 배경
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+
+      // 이미지 그리기
+      ctx.drawImage(img, 0, 0, w, h);
+
+      // 대비 강화 필터
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const data = imageData.data;
+      const contrast = 40; // 대비 강도
+      const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+      for(let i = 0; i < data.length; i += 4){
+        data[i]   = Math.min(255, Math.max(0, factor * (data[i]   - 128) + 128));
+        data[i+1] = Math.min(255, Math.max(0, factor * (data[i+1] - 128) + 128));
+        data[i+2] = Math.min(255, Math.max(0, factor * (data[i+2] - 128) + 128));
+      }
+      ctx.putImageData(imageData, 0, 0);
+
+      canvas.toBlob(blob => { URL.revokeObjectURL(url); resolve(blob); }, 'image/png');
+    };
+    img.src = url;
+  });
+}
+
 // ══════════════════════════════
 //  OCR 텍스트 파싱
 // ══════════════════════════════
 function parseOcrText(text){
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   const results = [];
-
-  // 카드사 이름과 금액 패턴 매칭
-  // 숫자 패턴: 1,234,567원 또는 1234567
-  const amountPattern = /([0-9,]+)원?/g;
+  const seenCards = new Set(); // 중복 방지
 
   for(let i = 0; i < lines.length; i++){
     const line = lines[i];
     const cardInfo = matchCardName(line);
     if(!cardInfo) continue;
 
-    // 같은 줄 또는 다음 줄에서 금액 찾기
-    let amount = 0;
-    const combinedText = line + ' ' + (lines[i+1] || '');
-    const matches = [...combinedText.matchAll(/([0-9]{1,3}(?:,[0-9]{3})*)/g)];
+    // 같은 카드 중복 방지
+    if(seenCards.has(cardInfo.name)) continue;
 
-    // 가장 큰 숫자를 금액으로 (카드 결제금액은 보통 큰 숫자)
+    // 같은 줄 또는 다음 1~2줄에서 금액 찾기
+    let amount = 0;
+    const searchText = [line, lines[i+1]||'', lines[i+2]||''].join(' ');
+    const matches = [...searchText.matchAll(/([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{5,})/g)];
+
     for(const m of matches){
       const num = parseInt(m[1].replace(/,/g,''), 10);
-      if(num > amount && num > 1000 && num < 100000000) amount = num;
+      // 유효 금액 범위: 1,000원 ~ 50,000,000원
+      if(num > amount && num >= 1000 && num <= 50000000) amount = num;
     }
 
     if(amount > 0){
+      seenCards.add(cardInfo.name);
       results.push({ cardName: cardInfo.name, amount, bank: cardInfo.bank, day: cardInfo.day });
     }
   }
@@ -476,11 +574,11 @@ function buildResult(){
   });
 
   const grand = currentCards.reduce((s,c) => s+c.amount, 0);
-  const now = new Date();
+  const {year, month} = getSelectedYearMonth();
 
   document.getElementById('grandTotal').textContent = grand.toLocaleString() + '원';
   document.getElementById('cardCount').textContent =
-    `${now.getFullYear()}년 ${now.getMonth()+1}월 · 카드 ${currentCards.length}개`;
+    `${year}년 ${month}월 · 카드 ${currentCards.length}개`;
 
   document.getElementById('sumBlocks').innerHTML = keys.map(k => {
     const g = map[k];
@@ -543,7 +641,7 @@ function getGroups(){
 }
 
 function dlExcel(){
-  const now = new Date(), groups = getGroups();
+  const {year:ey, month:em} = getSelectedYearMonth(), groups = getGroups();
   const rows = [['카드사','납부일','결제금액','납부은행','계좌번호']];
   let grand = 0;
   for(const g of groups){
@@ -555,14 +653,14 @@ function dlExcel(){
   const ws = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols'] = [{wch:16},{wch:12},{wch:14},{wch:12},{wch:24}];
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, `${now.getMonth()+1}월 카드정산`);
-  XLSX.writeFile(wb, `카드_결제내역_${now.getFullYear()}년${now.getMonth()+1}월.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, `${em}월 카드정산`);
+  XLSX.writeFile(wb, `카드_결제내역_${ey}년${em}월.xlsx`);
   toast('✅ 엑셀 다운로드 완료');
 }
 
 function dlText(){
-  const now = new Date(), groups = getGroups(); let grand = 0;
-  const lines = [`💳 카드 정산 — ${now.getFullYear()}년 ${now.getMonth()+1}월`, '─'.repeat(34), ''];
+  const {year:ty, month:tm} = getSelectedYearMonth(), groups = getGroups(); let grand = 0;
+  const lines = [`💳 카드 정산 — ${ty}년 ${tm}월`, '─'.repeat(34), ''];
   for(const g of groups){
     const tot = g.cards.reduce((s,c) => s+c.amount, 0); grand += tot;
     lines.push(`🏦 ${g.bank} · 매월 ${g.day}일 납부`, `   계좌: ${g.acct}`);
@@ -576,7 +674,7 @@ function dlText(){
 }
 
 function dlImage(){
-  const now = new Date(), groups = getGroups(), W = 600, PAD = 24;
+  const {year:iy, month:im} = getSelectedYearMonth(), groups = getGroups(), W = 600, PAD = 24;
   let grand = 0, y = 90;
   const items = [];
   for(const g of groups){
@@ -593,7 +691,7 @@ function dlImage(){
   ctx.fillStyle = '#fff'; ctx.font = 'bold 17px sans-serif'; ctx.fillText('💳 카드 정산 도우미', PAD, 28);
   ctx.font = 'bold 24px monospace'; ctx.fillText(grand.toLocaleString()+'원', PAD, 58);
   ctx.font = '11px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.45)';
-  ctx.fillText(`${now.getFullYear()}년 ${now.getMonth()+1}월`, PAD, 74);
+  ctx.fillText(`${iy}년 ${im}월`, PAD, 74);
   for(const l of items){
     if(l.t === 'bank'){
       ctx.fillStyle = '#E8E5DE'; ctx.fillRect(PAD-4, y, W-PAD*2+8, 30);
@@ -616,7 +714,7 @@ function dlImage(){
     }
   }
   const a = document.createElement('a');
-  a.download = `카드정산_${now.getFullYear()}년${now.getMonth()+1}월.png`;
+  a.download = `카드정산_${iy}년${im}월.png`;
   a.href = cvs.toDataURL('image/png'); a.click();
   toast('✅ 이미지 저장 완료');
 }
