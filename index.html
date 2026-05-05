@@ -742,7 +742,12 @@ function buildResult(){
     return `
       <div class="sum-block">
         <div class="sum-head">
-          <span class="sum-head-bank">🏦 ${g.bank}</span>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <span class="sum-head-bank">🏦 ${g.bank}</span>
+            <span style="font-size:11px;color:${g.acct ? 'rgba(255,255,255,0.5)' : 'rgba(251,191,36,0.9)'};font-family:'DM Mono',monospace;">
+              ${g.acct || '⚠️ 계좌번호 미등록'}
+            </span>
+          </div>
           <span class="sum-head-date">매월 ${g.day}일 납부</span>
         </div>
         ${g.cards.map(c => `
@@ -753,9 +758,6 @@ function buildResult(){
         <div class="sum-total">
           <div style="flex:1;min-width:0;">
             <div class="sum-total-label">💰 이체 합계</div>
-            <div class="sum-account" style="font-size:12px;color:${g.acct ? 'var(--ink3)' : 'var(--amber)'};font-family:'DM Mono',monospace;margin-top:2px;word-break:break-all;">
-              ${g.acct || '⚠️ 계좌번호 미등록 — 위 계좌 설정에서 입력'}
-            </div>
           </div>
           <span class="sum-total-amt" style="flex-shrink:0;margin-left:12px;">${tot.toLocaleString()}원</span>
         </div>
